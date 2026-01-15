@@ -1,0 +1,39 @@
+# ================================
+# YouthSchool MVP - Test Dependencies
+# ================================
+
+# 기본 의존성 포함
+-r requirements.txt
+
+# ----- Testing Framework -----
+pytest==8.0.0                      # 테스트 프레임워크
+pytest-asyncio==0.23.5             # 비동기 테스트
+pytest-cov==4.1.0                  # 커버리지
+pytest-mock==3.12.0                # Mock 객체
+pytest-xdist==3.5.0                # 병렬 테스트 실행
+pytest-timeout==2.2.0              # 테스트 타임아웃
+pytest-random-order==1.1.1         # 랜덤 테스트 순서
+
+# ----- HTTP Testing -----
+httpx==0.26.0                      # FastAPI TestClient용
+faker==22.6.0                      # 가짜 데이터 생성
+
+# ----- Database Testing -----
+pytest-postgresql==5.0.0           # PostgreSQL 테스트
+sqlalchemy-utils==0.41.1           # DB 유틸리티
+
+# ----- E2E Testing -----
+playwright==1.41.2                 # 브라우저 자동화
+pytest-playwright==0.4.4           # pytest + playwright 통합
+
+# ----- Mocking & Fixtures -----
+responses==0.24.1                  # HTTP 모킹
+freezegun==1.4.0                   # 시간 모킹
+factory-boy==3.3.0                 # 테스트 데이터 팩토리
+
+# ----- Performance Testing -----
+locust==2.20.0                     # 부하 테스트 (선택)
+
+# ----- Code Quality -----
+pytest-flake8==1.1.1               # Linting
+pytest-mypy==0.10.3                # 타입 체킹

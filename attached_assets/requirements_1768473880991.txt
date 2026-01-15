@@ -1,0 +1,45 @@
+# ================================
+# YouthSchool MVP - Backend Dependencies
+# Python 3.10+
+# ================================
+
+# ----- Web Framework -----
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
+
+# ----- HWP Processing -----
+pywin32==306
+# pyhwpx==0.2.4  # Linux 대안 (추후 필요시)
+
+# ----- Excel Processing -----
+openpyxl==3.1.2
+
+# ----- AI Integration -----
+anthropic==0.18.1
+
+# ----- Database -----
+sqlalchemy==2.0.25
+alembic==1.13.1
+
+# ----- Validation & Settings -----
+pydantic==2.6.1
+pydantic-settings==2.1.0
+python-dotenv==1.0.1
+
+# ----- HTTP Client -----
+httpx==0.26.0
+aiofiles==23.2.1
+
+# ----- Security -----
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.9
+
+# ----- Development Tools -----
+pytest==8.0.0
+pytest-asyncio==0.23.5
+pytest-cov==4.1.0
+black==24.1.1
+flake8==7.0.0
+mypy==1.8.0
