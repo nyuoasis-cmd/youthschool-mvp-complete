@@ -16,12 +16,18 @@ export interface IStorage {
   getTemplates(): Promise<Template[]>;
   getTemplatesByType(documentType: string): Promise<Template[]>;
   createTemplate(template: InsertTemplate): Promise<Template>;
+  updateTemplate(id: number, updates: Partial<Template>): Promise<Template | undefined>;
+  deleteTemplate(id: number): Promise<boolean>;
   
   // Generated Documents
   getDocument(id: number): Promise<GeneratedDocument | undefined>;
   getDocuments(): Promise<GeneratedDocument[]>;
   createDocument(doc: InsertGeneratedDocument): Promise<GeneratedDocument>;
   updateDocument(id: number, updates: Partial<GeneratedDocument>): Promise<GeneratedDocument | undefined>;
+  deleteDocument(id: number): Promise<boolean>;
+  
+  // Stats
+  getStats(): Promise<{ totalDocuments: number; totalTemplates: number; documentsByType: Record<string, number> }>;
 }
 
 export class MemStorage implements IStorage {
@@ -199,6 +205,39 @@ export class MemStorage implements IStorage {
     const updated: GeneratedDocument = { ...existing, ...updates };
     this.documents.set(id, updated);
     return updated;
+  }
+
+  async deleteDocument(id: number): Promise<boolean> {
+    return this.documents.delete(id);
+  }
+
+  async updateTemplate(id: number, updates: Partial<Template>): Promise<Template | undefined> {
+    const existing = this.templates.get(id);
+    if (!existing) return undefined;
+    
+    const updated: Template = { ...existing, ...updates };
+    this.templates.set(id, updated);
+    return updated;
+  }
+
+  async deleteTemplate(id: number): Promise<boolean> {
+    return this.templates.delete(id);
+  }
+
+  async getStats(): Promise<{ totalDocuments: number; totalTemplates: number; documentsByType: Record<string, number> }> {
+    const documents = Array.from(this.documents.values());
+    const documentsByType: Record<string, number> = {};
+    
+    documents.forEach(doc => {
+      const type = doc.documentType;
+      documentsByType[type] = (documentsByType[type] || 0) + 1;
+    });
+
+    return {
+      totalDocuments: this.documents.size,
+      totalTemplates: this.templates.size,
+      documentsByType,
+    };
   }
 }
 

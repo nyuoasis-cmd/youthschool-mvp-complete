@@ -10,6 +10,7 @@ import ParentLetterForm from "@/pages/ParentLetterForm";
 import EducationPlanForm from "@/pages/EducationPlanForm";
 import DocumentResult from "@/pages/DocumentResult";
 import History from "@/pages/History";
+import Admin from "@/pages/Admin";
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/create/education-plan" component={EducationPlanForm} />
       <Route path="/result/:id" component={DocumentResult} />
       <Route path="/history" component={History} />
+      <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>
   );

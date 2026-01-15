@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Briefcase, Sparkles, Clock, CheckCircle2, ArrowRight } from "lucide-react";
+import { FileText, Briefcase, Sparkles, Clock, CheckCircle2, ArrowRight, Settings } from "lucide-react";
 
 const documentTypes = [
   {
@@ -182,8 +182,14 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-border py-8">
-        <div className="max-w-6xl mx-auto px-6 text-center text-sm text-muted-foreground">
-          <p>YouthSchool MVP - 학교 문서 행정 AI 자동화 서비스</p>
+        <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-muted-foreground">YouthSchool MVP - 학교 문서 행정 AI 자동화 서비스</p>
+          <Link href="/admin">
+            <Button variant="ghost" size="sm" data-testid="button-admin">
+              <Settings className="w-4 h-4 mr-2" />
+              관리자
+            </Button>
+          </Link>
         </div>
       </footer>
     </div>
