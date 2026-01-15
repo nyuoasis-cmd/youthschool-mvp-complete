@@ -31,7 +31,17 @@ Preferred communication style: Simple, everyday language.
 - **ORM**: Drizzle ORM with PostgreSQL dialect
 - **Schema Location**: `shared/schema.ts` for shared type definitions
 - **Validation**: Zod schemas with drizzle-zod integration
-- **Storage**: MemStorage class for development, PostgreSQL for production
+- **Storage**: DatabaseStorage class with PostgreSQL for data persistence
+
+### Authentication & Authorization
+- **Auth Provider**: Replit Auth (OIDC) supporting Google, GitHub, and email login
+- **Session Management**: PostgreSQL-backed sessions via connect-pg-simple
+- **User Isolation**: Documents are scoped to authenticated users
+- **Security Model**:
+  - Anonymous users can generate documents (viewable immediately via state)
+  - Anonymous documents cannot be accessed later via API (403)
+  - Authenticated users can access/delete only their own documents
+  - Document lists and stats are user-scoped (empty for anonymous)
 
 ### Project Structure
 ```

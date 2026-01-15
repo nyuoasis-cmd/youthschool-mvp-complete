@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateDocumentRequestSchema, type GenerateDocumentRequest } from "@shared/schema";
 import Anthropic from "@anthropic-ai/sdk";
+import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 
 // Initialize Anthropic client with AI Integrations
 const anthropic = new Anthropic({
@@ -14,6 +15,12 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Setup Replit Auth (MUST be before other routes)
+  await setupAuth(app);
+  registerAuthRoutes(app);
+
+  // Initialize default templates if needed
+  await storage.initializeDefaultTemplates();
   
   // Get all templates
   app.get("/api/templates", async (req, res) => {
@@ -38,10 +45,11 @@ export async function registerRoutes(
     }
   });
 
-  // Get all generated documents
+  // Get all generated documents (scoped to authenticated user if logged in)
   app.get("/api/documents", async (req, res) => {
     try {
-      const documents = await storage.getDocuments();
+      const userId = (req.user as any)?.claims?.sub;
+      const documents = await storage.getDocuments(userId);
       res.json(documents);
     } catch (error) {
       console.error("Error fetching documents:", error);
@@ -49,7 +57,7 @@ export async function registerRoutes(
     }
   });
 
-  // Get single document
+  // Get single document (requires authentication and ownership)
   app.get("/api/documents/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -61,6 +69,20 @@ export async function registerRoutes(
       if (!document) {
         return res.status(404).json({ error: "Document not found" });
       }
+      
+      // Check ownership: users can only view their own documents
+      const userId = (req.user as any)?.claims?.sub;
+      
+      // Anonymous documents (userId is null) cannot be accessed via API
+      // They are only viewable immediately after creation via state
+      if (!document.userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      if (document.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
       res.json(document);
     } catch (error) {
       console.error("Error fetching document:", error);
@@ -100,8 +122,10 @@ export async function registerRoutes(
 
       // Create initial document record
       const title = inputs.title || `${documentType} - ${new Date().toLocaleDateString('ko-KR')}`;
+      const userId = (req.user as any)?.claims?.sub;
       const document = await storage.createDocument({
         templateId: template.id,
+        userId: userId || null,
         documentType,
         title,
         inputData: inputs,
@@ -154,12 +178,29 @@ export async function registerRoutes(
     }
   });
 
-  // Delete document
+  // Delete document (requires authentication and ownership)
   app.delete("/api/documents/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid document ID" });
+      }
+      
+      // Check ownership before delete
+      const document = await storage.getDocument(id);
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      
+      const userId = (req.user as any)?.claims?.sub;
+      
+      // Anonymous documents cannot be deleted via API
+      if (!document.userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      if (document.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
       }
       
       const deleted = await storage.deleteDocument(id);
@@ -222,10 +263,11 @@ export async function registerRoutes(
     }
   });
 
-  // Get stats
+  // Get stats (scoped to authenticated user if logged in)
   app.get("/api/stats", async (req, res) => {
     try {
-      const stats = await storage.getStats();
+      const userId = (req.user as any)?.claims?.sub;
+      const stats = await storage.getStats(userId);
       res.json(stats);
     } catch (error) {
       console.error("Error fetching stats:", error);

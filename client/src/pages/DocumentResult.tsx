@@ -13,11 +13,17 @@ export default function DocumentResult() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  
+  // Check if document was passed via state (for immediate display after generation)
+  const stateDocument = (window.history.state as any)?.document as GeneratedDocument | undefined;
 
-  const { data: document, isLoading, error } = useQuery<GeneratedDocument>({
+  const { data: fetchedDocument, isLoading, error } = useQuery<GeneratedDocument>({
     queryKey: [`/api/documents/${id}`],
-    enabled: !!id,
+    enabled: !!id && !stateDocument, // Skip API call if document was passed via state
   });
+  
+  // Use state document if available, otherwise use fetched document
+  const document = stateDocument || fetchedDocument;
 
   const handleCopy = async () => {
     if (!document?.generatedContent) return;
@@ -58,7 +64,8 @@ export default function DocumentResult() {
     });
   };
 
-  if (isLoading) {
+  // Only show loading if we're fetching and don't have state document
+  if (isLoading && !stateDocument) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">

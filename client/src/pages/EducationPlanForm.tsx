@@ -57,7 +57,8 @@ export default function EducationPlanForm() {
         title: "문서 생성 완료",
         description: "외부 교육 용역 계획서가 성공적으로 생성되었습니다.",
       });
-      setLocation(`/result/${data.id}`);
+      // Pass document data via state to avoid API call for anonymous users
+      setLocation(`/result/${data.id}`, { state: { document: data } });
     },
     onError: (error: Error) => {
       setGeneratingStatus("");

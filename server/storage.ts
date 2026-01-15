@@ -1,16 +1,12 @@
 import { 
-  type User, type InsertUser,
   type Template, type InsertTemplate,
-  type GeneratedDocument, type InsertGeneratedDocument 
+  type GeneratedDocument, type InsertGeneratedDocument,
+  templates, generatedDocuments
 } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { db } from "./db";
+import { eq, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
-  // Users
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  
   // Templates
   getTemplate(id: number): Promise<Template | undefined>;
   getTemplates(): Promise<Template[]>;
@@ -21,34 +17,113 @@ export interface IStorage {
   
   // Generated Documents
   getDocument(id: number): Promise<GeneratedDocument | undefined>;
-  getDocuments(): Promise<GeneratedDocument[]>;
+  getDocuments(userId?: string): Promise<GeneratedDocument[]>;
   createDocument(doc: InsertGeneratedDocument): Promise<GeneratedDocument>;
   updateDocument(id: number, updates: Partial<GeneratedDocument>): Promise<GeneratedDocument | undefined>;
   deleteDocument(id: number): Promise<boolean>;
   
   // Stats
-  getStats(): Promise<{ totalDocuments: number; totalTemplates: number; documentsByType: Record<string, number> }>;
+  getStats(userId?: string): Promise<{ totalDocuments: number; totalTemplates: number; documentsByType: Record<string, number> }>;
+  
+  // Initialization
+  initializeDefaultTemplates(): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private templates: Map<number, Template>;
-  private documents: Map<number, GeneratedDocument>;
-  private templateIdCounter: number;
-  private documentIdCounter: number;
-
-  constructor() {
-    this.users = new Map();
-    this.templates = new Map();
-    this.documents = new Map();
-    this.templateIdCounter = 1;
-    this.documentIdCounter = 1;
-    
-    // Initialize default templates
-    this.initializeDefaultTemplates();
+// DatabaseStorage implementation using Drizzle ORM
+export class DatabaseStorage implements IStorage {
+  
+  // Templates
+  async getTemplate(id: number): Promise<Template | undefined> {
+    const [template] = await db.select().from(templates).where(eq(templates.id, id));
+    return template || undefined;
   }
 
-  private initializeDefaultTemplates() {
+  async getTemplates(): Promise<Template[]> {
+    return await db.select().from(templates).orderBy(desc(templates.createdAt));
+  }
+
+  async getTemplatesByType(documentType: string): Promise<Template[]> {
+    return await db.select().from(templates).where(eq(templates.documentType, documentType));
+  }
+
+  async createTemplate(insertTemplate: InsertTemplate): Promise<Template> {
+    const [template] = await db.insert(templates).values(insertTemplate).returning();
+    return template;
+  }
+
+  async updateTemplate(id: number, updates: Partial<Template>): Promise<Template | undefined> {
+    const [updated] = await db.update(templates).set(updates).where(eq(templates.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deleteTemplate(id: number): Promise<boolean> {
+    const result = await db.delete(templates).where(eq(templates.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // Documents
+  async getDocument(id: number): Promise<GeneratedDocument | undefined> {
+    const [document] = await db.select().from(generatedDocuments).where(eq(generatedDocuments.id, id));
+    return document || undefined;
+  }
+
+  async getDocuments(userId?: string): Promise<GeneratedDocument[]> {
+    if (!userId) {
+      return []; // Anonymous users see no documents
+    }
+    return await db.select().from(generatedDocuments)
+      .where(eq(generatedDocuments.userId, userId))
+      .orderBy(desc(generatedDocuments.createdAt));
+  }
+
+  async createDocument(insertDoc: InsertGeneratedDocument): Promise<GeneratedDocument> {
+    const [document] = await db.insert(generatedDocuments).values(insertDoc).returning();
+    return document;
+  }
+
+  async updateDocument(id: number, updates: Partial<GeneratedDocument>): Promise<GeneratedDocument | undefined> {
+    const [updated] = await db.update(generatedDocuments).set(updates).where(eq(generatedDocuments.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deleteDocument(id: number): Promise<boolean> {
+    const result = await db.delete(generatedDocuments).where(eq(generatedDocuments.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // Stats
+  async getStats(userId?: string): Promise<{ totalDocuments: number; totalTemplates: number; documentsByType: Record<string, number> }> {
+    const allTemplates = await db.select().from(templates);
+    
+    // Anonymous users see empty stats for documents
+    if (!userId) {
+      return {
+        totalDocuments: 0,
+        totalTemplates: allTemplates.length,
+        documentsByType: {},
+      };
+    }
+    
+    const documents = await db.select().from(generatedDocuments).where(eq(generatedDocuments.userId, userId));
+
+    const documentsByType: Record<string, number> = {};
+    documents.forEach(doc => {
+      const type = doc.documentType;
+      documentsByType[type] = (documentsByType[type] || 0) + 1;
+    });
+
+    return {
+      totalDocuments: documents.length,
+      totalTemplates: allTemplates.length,
+      documentsByType,
+    };
+  }
+
+  // Initialize default templates if none exist
+  async initializeDefaultTemplates(): Promise<void> {
+    const existingTemplates = await this.getTemplates();
+    if (existingTemplates.length > 0) return;
+
     const defaultTemplates: InsertTemplate[] = [
       {
         name: "가정통신문",
@@ -106,139 +181,10 @@ export class MemStorage implements IStorage {
       },
     ];
 
-    defaultTemplates.forEach((template) => {
-      this.createTemplate(template);
-    });
-  }
-
-  // Users
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { 
-      ...insertUser, 
-      id,
-      fullName: null,
-      schoolName: null,
-      role: "teacher",
-      createdAt: new Date(),
-    };
-    this.users.set(id, user);
-    return user;
-  }
-
-  // Templates
-  async getTemplate(id: number): Promise<Template | undefined> {
-    return this.templates.get(id);
-  }
-
-  async getTemplates(): Promise<Template[]> {
-    return Array.from(this.templates.values()).sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateB - dateA;
-    });
-  }
-
-  async getTemplatesByType(documentType: string): Promise<Template[]> {
-    return Array.from(this.templates.values()).filter(
-      (t) => t.documentType === documentType
-    );
-  }
-
-  async createTemplate(insertTemplate: InsertTemplate): Promise<Template> {
-    const id = this.templateIdCounter++;
-    const template: Template = {
-      ...insertTemplate,
-      id,
-      description: insertTemplate.description ?? null,
-      isDefault: insertTemplate.isDefault ?? false,
-      promptTemplate: insertTemplate.promptTemplate ?? null,
-      createdAt: new Date(),
-    };
-    this.templates.set(id, template);
-    return template;
-  }
-
-  // Documents
-  async getDocument(id: number): Promise<GeneratedDocument | undefined> {
-    return this.documents.get(id);
-  }
-
-  async getDocuments(): Promise<GeneratedDocument[]> {
-    return Array.from(this.documents.values()).sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateB - dateA;
-    });
-  }
-
-  async createDocument(insertDoc: InsertGeneratedDocument): Promise<GeneratedDocument> {
-    const id = this.documentIdCounter++;
-    const document: GeneratedDocument = {
-      ...insertDoc,
-      id,
-      templateId: insertDoc.templateId ?? null,
-      inputData: insertDoc.inputData ?? null,
-      generatedContent: insertDoc.generatedContent ?? null,
-      status: insertDoc.status ?? "pending",
-      processingTimeMs: insertDoc.processingTimeMs ?? null,
-      createdAt: new Date(),
-    };
-    this.documents.set(id, document);
-    return document;
-  }
-
-  async updateDocument(id: number, updates: Partial<GeneratedDocument>): Promise<GeneratedDocument | undefined> {
-    const existing = this.documents.get(id);
-    if (!existing) return undefined;
-    
-    const updated: GeneratedDocument = { ...existing, ...updates };
-    this.documents.set(id, updated);
-    return updated;
-  }
-
-  async deleteDocument(id: number): Promise<boolean> {
-    return this.documents.delete(id);
-  }
-
-  async updateTemplate(id: number, updates: Partial<Template>): Promise<Template | undefined> {
-    const existing = this.templates.get(id);
-    if (!existing) return undefined;
-    
-    const updated: Template = { ...existing, ...updates };
-    this.templates.set(id, updated);
-    return updated;
-  }
-
-  async deleteTemplate(id: number): Promise<boolean> {
-    return this.templates.delete(id);
-  }
-
-  async getStats(): Promise<{ totalDocuments: number; totalTemplates: number; documentsByType: Record<string, number> }> {
-    const documents = Array.from(this.documents.values());
-    const documentsByType: Record<string, number> = {};
-    
-    documents.forEach(doc => {
-      const type = doc.documentType;
-      documentsByType[type] = (documentsByType[type] || 0) + 1;
-    });
-
-    return {
-      totalDocuments: this.documents.size,
-      totalTemplates: this.templates.size,
-      documentsByType,
-    };
+    for (const template of defaultTemplates) {
+      await this.createTemplate(template);
+    }
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

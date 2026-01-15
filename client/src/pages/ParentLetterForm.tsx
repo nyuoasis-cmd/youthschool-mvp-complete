@@ -55,7 +55,8 @@ export default function ParentLetterForm() {
         title: "문서 생성 완료",
         description: "가정통신문이 성공적으로 생성되었습니다.",
       });
-      setLocation(`/result/${data.id}`);
+      // Pass document data via state to avoid API call for anonymous users
+      setLocation(`/result/${data.id}`, { state: { document: data } });
     },
     onError: (error: Error) => {
       setGeneratingStatus("");

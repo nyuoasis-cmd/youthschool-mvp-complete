@@ -1,7 +1,10 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Briefcase, Sparkles, Clock, CheckCircle2, ArrowRight, Settings } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { FileText, Briefcase, Sparkles, Clock, CheckCircle2, ArrowRight, Settings, LogIn, LogOut, User } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 const documentTypes = [
   {
@@ -41,8 +44,65 @@ const features = [
 ];
 
 export default function Home() {
+  const { user, isLoading, isAuthenticated } = useAuth();
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
+        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-6 h-6 text-primary" />
+            <span className="font-semibold text-lg">YouthSchool</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {isLoading ? (
+              <div className="h-9 w-24 bg-muted animate-pulse rounded-md" />
+            ) : isAuthenticated && user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center gap-2" data-testid="button-user-menu">
+                    <Avatar className="h-7 w-7">
+                      <AvatarImage src={user.profileImageUrl || undefined} alt={user.firstName || "사용자"} />
+                      <AvatarFallback>
+                        <User className="h-4 w-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="hidden sm:inline text-sm">
+                      {user.firstName || user.email || "사용자"}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <div className="px-2 py-1.5">
+                    <p className="text-sm font-medium">{user.firstName} {user.lastName}</p>
+                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/history">내 문서 보기</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <a href="/api/logout" className="flex items-center gap-2 text-destructive" data-testid="button-logout">
+                      <LogOut className="h-4 w-4" />
+                      로그아웃
+                    </a>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button asChild data-testid="button-login">
+                <a href="/api/login" className="flex items-center gap-2">
+                  <LogIn className="h-4 w-4" />
+                  로그인
+                </a>
+              </Button>
+            )}
+          </div>
+        </div>
+      </header>
+
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-b from-primary/5 via-background to-background">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
