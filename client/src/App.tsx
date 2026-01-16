@@ -8,6 +8,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import ParentLetterForm from "@/pages/ParentLetterForm";
 import EducationPlanForm from "@/pages/EducationPlanForm";
+import TemplateForm from "@/pages/TemplateForm";
 import DocumentResult from "@/pages/DocumentResult";
 import History from "@/pages/History";
 import Admin from "@/pages/Admin";
@@ -18,6 +19,8 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/create/parent-letter" component={ParentLetterForm} />
       <Route path="/create/education-plan" component={EducationPlanForm} />
+      <Route path="/create/template" component={TemplateForm} />
+      <Route path="/create/template/:id" component={TemplateForm} />
       <Route path="/result/:id" component={DocumentResult} />
       <Route path="/history" component={History} />
       <Route path="/admin" component={Admin} />

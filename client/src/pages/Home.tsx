@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FileText, Briefcase, Sparkles, Clock, CheckCircle2, ArrowRight, Settings, LogIn, LogOut, User } from "lucide-react";
+import { FileText, Briefcase, Sparkles, Clock, CheckCircle2, ArrowRight, Settings, LogIn, LogOut, User, Upload } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 const documentTypes = [
@@ -22,6 +22,14 @@ const documentTypes = [
     icon: Briefcase,
     href: "/create/education-plan",
     examples: ["창업 체험 프로그램", "진로 탐색 교육", "코딩 교육 프로그램"],
+  },
+  {
+    id: "template-form",
+    title: "HWP 양식으로 작성",
+    description: "기존 HWP 양식을 업로드하면 자동으로 입력 항목을 만들어 드립니다.",
+    icon: Upload,
+    href: "/create/template",
+    examples: ["기존 가정통신문 양식", "학교 공문 양식", "교육청 서식"],
   },
 ];
 
