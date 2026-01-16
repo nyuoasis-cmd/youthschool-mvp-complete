@@ -32,9 +32,11 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Setup Replit Auth (MUST be before other routes)
-  await setupAuth(app);
-  registerAuthRoutes(app);
+  // Setup Replit Auth (MUST be before other routes) - skip in local development
+  if (process.env.REPL_ID) {
+    await setupAuth(app);
+    registerAuthRoutes(app);
+  }
 
   // Initialize default templates if needed
   await storage.initializeDefaultTemplates();
