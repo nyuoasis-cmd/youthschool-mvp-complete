@@ -6,6 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import multer from "multer";
 import { parseHwpFile, chunkText } from "./hwpParser";
+import { exportToDocx, exportToPdf } from "./documentExporter";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -216,6 +217,74 @@ ${contextChunks || uploadedTemplate.extractedText.substring(0, 2000)}
     } catch (error) {
       console.error("Error generating document:", error);
       res.status(500).json({ error: "Failed to generate document" });
+    }
+  });
+
+  // Export document as DOCX or PDF
+  app.get("/api/documents/:id/export/:format", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const format = req.params.format as "docx" | "pdf";
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid document ID" });
+      }
+      
+      if (!["docx", "pdf"].includes(format)) {
+        return res.status(400).json({ error: "Invalid format. Use 'docx' or 'pdf'" });
+      }
+      
+      const document = await storage.getDocument(id);
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      
+      // Check ownership
+      const userId = (req.user as any)?.claims?.sub;
+      if (document.userId && document.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      if (!document.generatedContent) {
+        return res.status(400).json({ error: "Document has no content to export" });
+      }
+      
+      const schoolName = document.inputData?.schoolName;
+      
+      let buffer: Buffer;
+      let contentType: string;
+      let fileExtension: string;
+      
+      if (format === "docx") {
+        buffer = await exportToDocx({
+          title: document.title,
+          content: document.generatedContent,
+          schoolName,
+          format: "docx",
+        });
+        contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        fileExtension = "docx";
+      } else {
+        buffer = await exportToPdf({
+          title: document.title,
+          content: document.generatedContent,
+          schoolName,
+          format: "pdf",
+        });
+        contentType = "application/pdf";
+        fileExtension = "pdf";
+      }
+      
+      const safeTitle = document.title.replace(/[^a-zA-Z0-9가-힣\s]/g, "").trim() || "document";
+      const fileName = `${safeTitle}.${fileExtension}`;
+      
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+      res.setHeader("Content-Length", buffer.length);
+      res.send(buffer);
+    } catch (error) {
+      console.error("Error exporting document:", error);
+      res.status(500).json({ error: "Failed to export document" });
     }
   });
 
