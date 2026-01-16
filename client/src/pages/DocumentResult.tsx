@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
-import { ArrowLeft, Download, Copy, CheckCircle2, FileText, Clock, Loader2, RefreshCw } from "lucide-react";
+import { ArrowLeft, Download, Copy, CheckCircle2, FileText, Clock, Loader2, RefreshCw, FileDown } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import type { GeneratedDocument } from "@shared/schema";
 
@@ -45,22 +46,32 @@ export default function DocumentResult() {
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = (format: "txt" | "docx" | "pdf") => {
     if (!document?.generatedContent) return;
 
-    const blob = new Blob([document.generatedContent], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = window.document.createElement("a");
-    a.href = url;
-    a.download = `${document.title || "document"}.txt`;
-    window.document.body.appendChild(a);
-    a.click();
-    window.document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (format === "txt") {
+      const blob = new Blob([document.generatedContent], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = window.document.createElement("a");
+      a.href = url;
+      a.download = `${document.title || "document"}.txt`;
+      window.document.body.appendChild(a);
+      a.click();
+      window.document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } else {
+      const downloadUrl = `/api/documents/${document.id}/export/${format}`;
+      const a = window.document.createElement("a");
+      a.href = downloadUrl;
+      a.download = `${document.title || "document"}.${format}`;
+      window.document.body.appendChild(a);
+      a.click();
+      window.document.body.removeChild(a);
+    }
 
     toast({
       title: "다운로드 시작",
-      description: "문서 파일이 다운로드됩니다.",
+      description: `${format.toUpperCase()} 파일이 다운로드됩니다.`,
     });
   };
 
@@ -162,14 +173,37 @@ export default function DocumentResult() {
                     </>
                   )}
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={handleDownload}
-                  data-testid="button-download"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  다운로드
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" data-testid="button-download">
+                      <FileDown className="w-4 h-4 mr-2" />
+                      내보내기
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem 
+                      onClick={() => handleDownload("docx")}
+                      data-testid="button-download-docx"
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      DOCX (Word)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => handleDownload("pdf")}
+                      data-testid="button-download-pdf"
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => handleDownload("txt")}
+                      data-testid="button-download-txt"
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      텍스트
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </CardHeader>

@@ -1,18 +1,18 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, FileText, Layout, Trash2, Plus, BarChart3, Edit, Loader2 } from "lucide-react";
-import type { Template, GeneratedDocument } from "@shared/schema";
+import { ArrowLeft, FileText, Layout, Trash2, BarChart3, Edit, Loader2, Upload, CheckCircle2, AlertCircle } from "lucide-react";
+import type { Template, GeneratedDocument, UploadedTemplate } from "@shared/schema";
 
 interface Stats {
   totalDocuments: number;
@@ -23,9 +23,11 @@ interface Stats {
 export default function Admin() {
   const { toast } = useToast();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ type: "document" | "template"; id: number; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: "document" | "template" | "uploaded"; id: number; name: string } | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editTemplate, setEditTemplate] = useState<Template | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: stats, isLoading: statsLoading } = useQuery<Stats>({
     queryKey: ["/api/stats"],
@@ -37,6 +39,10 @@ export default function Admin() {
 
   const { data: documents, isLoading: documentsLoading } = useQuery<GeneratedDocument[]>({
     queryKey: ["/api/documents"],
+  });
+
+  const { data: uploadedTemplates, isLoading: uploadedTemplatesLoading } = useQuery<UploadedTemplate[]>({
+    queryKey: ["/api/uploaded-templates"],
   });
 
   const deleteDocumentMutation = useMutation({
@@ -106,11 +112,81 @@ export default function Admin() {
     },
   });
 
+  const deleteUploadedTemplateMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/uploaded-templates/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/uploaded-templates"] });
+      toast({
+        title: "템플릿 삭제 완료",
+        description: "업로드된 템플릿이 삭제되었습니다.",
+      });
+      setDeleteDialogOpen(false);
+    },
+    onError: () => {
+      toast({
+        title: "삭제 실패",
+        description: "템플릿 삭제에 실패했습니다.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith(".hwp")) {
+      toast({
+        title: "잘못된 파일 형식",
+        description: "HWP 파일만 업로드할 수 있습니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/uploaded-templates/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "업로드 실패");
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["/api/uploaded-templates"] });
+      toast({
+        title: "업로드 완료",
+        description: "HWP 템플릿이 성공적으로 업로드되었습니다.",
+      });
+    } catch (error) {
+      toast({
+        title: "업로드 실패",
+        description: error instanceof Error ? error.message : "파일 업로드에 실패했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   const handleDelete = () => {
     if (!deleteTarget) return;
     
     if (deleteTarget.type === "document") {
       deleteDocumentMutation.mutate(deleteTarget.id);
+    } else if (deleteTarget.type === "uploaded") {
+      deleteUploadedTemplateMutation.mutate(deleteTarget.id);
     } else {
       deleteTemplateMutation.mutate(deleteTarget.id);
     }
@@ -214,6 +290,7 @@ export default function Admin() {
           <TabsList>
             <TabsTrigger value="templates" data-testid="tab-templates">템플릿 관리</TabsTrigger>
             <TabsTrigger value="documents" data-testid="tab-documents">문서 관리</TabsTrigger>
+            <TabsTrigger value="uploads" data-testid="tab-uploads">HWP 업로드</TabsTrigger>
           </TabsList>
 
           <TabsContent value="templates" className="space-y-4">
@@ -346,6 +423,117 @@ export default function Admin() {
                   <Link href="/">
                     <Button data-testid="button-create-document">문서 생성하기</Button>
                   </Link>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="uploads" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">HWP 템플릿 업로드</h2>
+              <div>
+                <input
+                  type="file"
+                  accept=".hwp"
+                  onChange={handleFileUpload}
+                  ref={fileInputRef}
+                  className="hidden"
+                  id="hwp-upload"
+                  data-testid="input-hwp-upload"
+                />
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  data-testid="button-upload-hwp"
+                >
+                  {isUploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Upload className="h-4 w-4 mr-2" />
+                  )}
+                  HWP 파일 업로드
+                </Button>
+              </div>
+            </div>
+
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-sm text-muted-foreground mb-4">
+                  기존 HWP 문서를 업로드하면 AI가 문서 구조와 스타일을 분석하여 
+                  새 문서 생성 시 참고 자료로 활용합니다. 
+                  업로드된 템플릿은 문서 생성 시 선택할 수 있습니다.
+                </p>
+              </CardContent>
+            </Card>
+
+            {uploadedTemplatesLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : uploadedTemplates && uploadedTemplates.length > 0 ? (
+              <div className="grid gap-4">
+                {uploadedTemplates.map((template) => (
+                  <Card key={template.id} data-testid={`card-uploaded-${template.id}`}>
+                    <CardHeader className="flex flex-row items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <CardTitle className="text-base">{template.originalName}</CardTitle>
+                          {template.status === "completed" ? (
+                            <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                              완료
+                            </Badge>
+                          ) : template.status === "failed" ? (
+                            <Badge variant="destructive">
+                              <AlertCircle className="w-3 h-3 mr-1" />
+                              실패
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                              처리중
+                            </Badge>
+                          )}
+                        </div>
+                        <CardDescription>
+                          업로드: {formatDate(template.createdAt)}
+                          {template.extractedFields && Array.isArray(template.extractedFields) && (
+                            <span className="ml-2">| 필드: {template.extractedFields.length}개</span>
+                          )}
+                        </CardDescription>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setDeleteTarget({ type: "uploaded", id: template.id, name: template.originalName });
+                            setDeleteDialogOpen(true);
+                          }}
+                          data-testid={`button-delete-uploaded-${template.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    {template.extractedText && (
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {template.extractedText.substring(0, 200)}...
+                        </p>
+                      </CardContent>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                  <Upload className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">업로드된 템플릿이 없습니다</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    HWP 파일을 업로드하면 AI 문서 생성에 참고됩니다.
+                  </p>
                 </CardContent>
               </Card>
             )}
