@@ -107,6 +107,39 @@ export async function registerRoutes(
     }
   });
 
+  // Create document manually (without AI)
+  app.post("/api/documents", async (req, res) => {
+    try {
+      const { documentType, content, title } = req.body;
+      
+      if (!content || !title) {
+        return res.status(400).json({ error: "Title and content are required" });
+      }
+
+      const userId = (req.user as any)?.claims?.sub;
+      
+      // Get template for document type
+      const templates = await storage.getTemplatesByType(documentType || "가정통신문");
+      const template = templates.find(t => t.isDefault) || templates[0];
+      
+      const document = await storage.createDocument({
+        templateId: template?.id || null,
+        userId: userId || null,
+        documentType: documentType || "가정통신문",
+        title,
+        inputData: {},
+        generatedContent: content,
+        status: "completed",
+        processingTimeMs: 0,
+      });
+
+      res.status(201).json(document);
+    } catch (error) {
+      console.error("Error creating document:", error);
+      res.status(500).json({ error: "Failed to create document" });
+    }
+  });
+
   // Generate document with AI
   app.post("/api/documents/generate", async (req, res) => {
     const startTime = Date.now();
