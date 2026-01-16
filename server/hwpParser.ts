@@ -50,37 +50,70 @@ export async function parseHwpFile(buffer: Buffer): Promise<HwpParseResult> {
 
 function extractTextFromJson(jsonData: any): string {
   const textParts: string[] = [];
+  const visited = new WeakSet();
   
-  function traverse(obj: any) {
-    if (typeof obj === "string") {
-      textParts.push(obj);
-    } else if (Array.isArray(obj)) {
-      obj.forEach(traverse);
-    } else if (obj && typeof obj === "object") {
-      if (obj.text) {
-        textParts.push(obj.text);
+  const contentKeys = ["text", "value", "content", "str", "data"];
+  const structureKeys = ["sections", "paragraphs", "runs", "children", "body", "bodyText"];
+  const skipKeys = ["header", "docInfo", "charShapes", "paraShapes", "fonts", "styles", "binData", "properties", "settings", "version", "flags"];
+  
+  function extractFromSection(section: any, depth: number = 0) {
+    if (!section || typeof section !== "object" || depth > 20) return;
+    if (visited.has(section)) return;
+    
+    try {
+      visited.add(section);
+    } catch {
+    }
+    
+    if (Array.isArray(section)) {
+      for (const item of section) {
+        extractFromSection(item, depth + 1);
       }
-      if (obj.content) {
-        traverse(obj.content);
+      return;
+    }
+    
+    for (const key of contentKeys) {
+      if (section[key] && typeof section[key] === "string") {
+        const text = section[key].trim();
+        if (text.length > 0 && text.length < 5000) {
+          textParts.push(text);
+        }
       }
-      if (obj.children) {
-        traverse(obj.children);
+    }
+    
+    for (const key of structureKeys) {
+      if (section[key] && !skipKeys.includes(key)) {
+        extractFromSection(section[key], depth + 1);
       }
-      if (obj.paragraphs) {
-        traverse(obj.paragraphs);
+    }
+    
+    if (section.type === "paragraph" || section.type === "run" || section.nodeType === "paragraph") {
+      for (const key of Object.keys(section)) {
+        if (!skipKeys.includes(key) && !contentKeys.includes(key) && !structureKeys.includes(key)) {
+          if (section[key] && typeof section[key] === "object") {
+            extractFromSection(section[key], depth + 1);
+          }
+        }
       }
-      Object.values(obj).forEach(traverse);
     }
   }
   
-  traverse(jsonData);
+  if (jsonData.sections) {
+    extractFromSection(jsonData.sections);
+  } else if (jsonData.body) {
+    extractFromSection(jsonData.body);
+  } else if (jsonData.paragraphs) {
+    extractFromSection(jsonData.paragraphs);
+  } else {
+    extractFromSection(jsonData);
+  }
   
-  const cleanedParts = textParts
-    .map(t => t.trim())
+  const cleanedText = textParts
+    .map(t => t.replace(/\s+/g, " ").trim())
     .filter(t => t.length > 0)
-    .filter((t, i, arr) => arr.indexOf(t) === i);
+    .join("\n");
   
-  return cleanedParts.join("\n");
+  return cleanedText;
 }
 
 function extractFieldsFromText(text: string): TemplateField[] {

@@ -63,6 +63,18 @@ Preferred communication style: Simple, everyday language.
 - **In-Memory Storage**: MemStorage implementation allows development without database, with interface designed for easy PostgreSQL migration
 - **AI Integration Pattern**: Centralized Anthropic client initialization with batch processing utilities for rate limit handling
 
+### HWP Template Upload & RAG
+- **HWP Parsing**: @ohah/hwpjs library for parsing Korean HWP documents
+- **Text Extraction**: Extracts text, structure, and style info from uploaded HWP files
+- **RAG Context**: Text chunks (500 chars, 50 overlap) stored for retrieval-augmented generation
+- **Template Fields**: AI-powered field detection from uploaded documents
+- **User Scoping**: Uploaded templates are user-scoped with ownership checks
+
+### Document Export
+- **DOCX Export**: Uses `docx` library for Word document generation
+- **PDF Export**: Uses `html-pdf-node` for PDF generation
+- **Export Endpoint**: GET `/api/documents/:id/export/:format` (docx or pdf)
+
 ## External Dependencies
 
 ### AI Services
