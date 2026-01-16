@@ -4,6 +4,22 @@ import { storage } from "./storage";
 import { generateDocumentRequestSchema, type GenerateDocumentRequest } from "@shared/schema";
 import Anthropic from "@anthropic-ai/sdk";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+import multer from "multer";
+import { parseHwpFile, chunkText } from "./hwpParser";
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.originalname.toLowerCase().endsWith(".hwp") || 
+        file.mimetype === "application/x-hwp" ||
+        file.mimetype === "application/octet-stream") {
+      cb(null, true);
+    } else {
+      cb(new Error("HWP 파일만 업로드 가능합니다"));
+    }
+  },
+});
 
 // Initialize Anthropic client with AI Integrations
 const anthropic = new Anthropic({
@@ -272,6 +288,221 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching stats:", error);
       res.status(500).json({ error: "Failed to fetch stats" });
+    }
+  });
+
+  // ================== HWP Upload & Template Extraction ==================
+
+  // Upload HWP file and extract template
+  app.post("/api/uploaded-templates/upload", upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "파일이 필요합니다" });
+      }
+
+      const userId = (req.user as any)?.claims?.sub;
+      const fileName = `${Date.now()}-${req.file.originalname}`;
+      
+      // Create initial template record
+      const template = await storage.createUploadedTemplate({
+        userId: userId || null,
+        fileName,
+        originalName: req.file.originalname,
+        status: "processing",
+      });
+
+      // Parse HWP file
+      try {
+        const parseResult = await parseHwpFile(req.file.buffer);
+        
+        // Update template with extracted data
+        const updated = await storage.updateUploadedTemplate(template.id, {
+          extractedText: parseResult.text,
+          extractedMarkdown: parseResult.markdown,
+          extractedFields: parseResult.fields,
+          styleInfo: parseResult.styleInfo,
+          status: "completed",
+        });
+
+        // Create embeddings for RAG
+        const chunks = chunkText(parseResult.text);
+        for (let i = 0; i < chunks.length; i++) {
+          await storage.createEmbedding({
+            uploadedTemplateId: template.id,
+            chunkIndex: i,
+            chunkText: chunks[i],
+          });
+        }
+
+        res.status(201).json(updated);
+      } catch (parseError) {
+        await storage.updateUploadedTemplate(template.id, {
+          status: "failed",
+        });
+        throw parseError;
+      }
+    } catch (error) {
+      console.error("Error uploading HWP file:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "HWP 파일 업로드 실패" 
+      });
+    }
+  });
+
+  // Get all uploaded templates (user-scoped)
+  app.get("/api/uploaded-templates", async (req, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const templates = await storage.getUploadedTemplates(userId);
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching uploaded templates:", error);
+      res.status(500).json({ error: "Failed to fetch uploaded templates" });
+    }
+  });
+
+  // Get single uploaded template
+  app.get("/api/uploaded-templates/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid template ID" });
+      }
+      
+      const template = await storage.getUploadedTemplate(id);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      // Check ownership
+      const userId = (req.user as any)?.claims?.sub;
+      if (template.userId && template.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      res.json(template);
+    } catch (error) {
+      console.error("Error fetching uploaded template:", error);
+      res.status(500).json({ error: "Failed to fetch uploaded template" });
+    }
+  });
+
+  // Delete uploaded template
+  app.delete("/api/uploaded-templates/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid template ID" });
+      }
+      
+      const template = await storage.getUploadedTemplate(id);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      // Check ownership
+      const userId = (req.user as any)?.claims?.sub;
+      if (template.userId && template.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      await storage.deleteUploadedTemplate(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting uploaded template:", error);
+      res.status(500).json({ error: "Failed to delete uploaded template" });
+    }
+  });
+
+  // Get embeddings for a template (for RAG context)
+  app.get("/api/uploaded-templates/:id/embeddings", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid template ID" });
+      }
+      
+      const template = await storage.getUploadedTemplate(id);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      // Check ownership
+      const userId = (req.user as any)?.claims?.sub;
+      if (template.userId && template.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const embeddings = await storage.getEmbeddingsByTemplateId(id);
+      res.json(embeddings);
+    } catch (error) {
+      console.error("Error fetching embeddings:", error);
+      res.status(500).json({ error: "Failed to fetch embeddings" });
+    }
+  });
+
+  // Use AI to analyze template and extract fields
+  app.post("/api/uploaded-templates/:id/analyze", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid template ID" });
+      }
+      
+      const template = await storage.getUploadedTemplate(id);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      // Check ownership
+      const userId = (req.user as any)?.claims?.sub;
+      if (template.userId && template.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      // Use Claude to analyze the document and extract fields
+      const analysisPrompt = `당신은 한국어 학교 행정 문서 분석 전문가입니다. 다음 문서 내용을 분석하여 필요한 입력 필드를 추출해주세요.
+
+[문서 내용]
+${template.extractedText?.substring(0, 3000) || "(내용 없음)"}
+
+[분석 지침]
+1. 문서에서 사용자가 입력해야 할 항목들을 식별하세요
+2. 각 항목에 대해 다음 정보를 JSON 형식으로 제공하세요:
+   - name: 영문 필드명 (camelCase)
+   - label: 한국어 라벨
+   - type: "text", "textarea", "date", "number", "select" 중 하나
+   - required: true/false
+   - description: 필드 설명
+
+JSON 배열 형식으로만 응답해주세요:`;
+
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 2048,
+        messages: [{ role: "user", content: analysisPrompt }],
+      });
+
+      const content = message.content[0];
+      const responseText = content.type === "text" ? content.text : "";
+      
+      // Parse the JSON response
+      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const fields = JSON.parse(jsonMatch[0]);
+        
+        // Update template with AI-analyzed fields
+        const updated = await storage.updateUploadedTemplate(id, {
+          extractedFields: fields,
+        });
+        
+        res.json(updated);
+      } else {
+        res.status(500).json({ error: "필드 분석에 실패했습니다" });
+      }
+    } catch (error) {
+      console.error("Error analyzing template:", error);
+      res.status(500).json({ error: "템플릿 분석 실패" });
     }
   });
 
