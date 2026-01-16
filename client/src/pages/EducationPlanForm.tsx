@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { ArrowLeft, Sparkles, Loader2, FileText, Download, Eye } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2, FileText, Download, Eye, Wand2 } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,7 @@ export default function EducationPlanForm() {
   const [mode, setMode] = useState<"ai" | "manual">("ai");
   const [manualContent, setManualContent] = useState<string>("");
   const [previewDocument, setPreviewDocument] = useState<any>(null);
+  const [generatingField, setGeneratingField] = useState<string | null>(null);
 
   const form = useForm<EducationPlanInput>({
     resolver: zodResolver(educationPlanInputSchema),
@@ -93,6 +94,45 @@ export default function EducationPlanForm() {
       toast({
         title: "문서 저장 실패",
         description: error.message || "문서 저장 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const generateFieldMutation = useMutation({
+    mutationFn: async ({ fieldName, fieldLabel }: { fieldName: string; fieldLabel: string }) => {
+      setGeneratingField(fieldName);
+      const response = await apiRequest("POST", "/api/documents/generate-field", {
+        documentType: "외부 교육 용역 계획서",
+        fieldName,
+        fieldLabel,
+        context: {
+          title: form.getValues("title"),
+          schoolName: form.getValues("schoolName"),
+          programName: form.getValues("programName"),
+          targetStudents: form.getValues("targetStudents"),
+          duration: form.getValues("duration"),
+          objectives: form.getValues("objectives"),
+          contents: form.getValues("contents"),
+          budget: form.getValues("budget"),
+          expectedOutcomes: form.getValues("expectedOutcomes"),
+        },
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setGeneratingField(null);
+      form.setValue(data.fieldName as keyof EducationPlanInput, data.generatedContent);
+      toast({
+        title: "AI 생성 완료",
+        description: "내용이 생성되었습니다. 필요시 수정해주세요.",
+      });
+    },
+    onError: (error: Error) => {
+      setGeneratingField(null);
+      toast({
+        title: "AI 생성 실패",
+        description: error.message || "내용 생성 중 오류가 발생했습니다.",
         variant: "destructive",
       });
     },
@@ -311,7 +351,29 @@ export default function EducationPlanForm() {
                       name="objectives"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>교육 목표 *</FormLabel>
+                          <div className="flex items-center justify-between">
+                            <FormLabel>교육 목표 *</FormLabel>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => generateFieldMutation.mutate({ fieldName: "objectives", fieldLabel: "교육 목표" })}
+                              disabled={generatingField === "objectives"}
+                              data-testid="button-ai-objectives"
+                            >
+                              {generatingField === "objectives" ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                  생성 중...
+                                </>
+                              ) : (
+                                <>
+                                  <Wand2 className="w-3 h-3 mr-1" />
+                                  AI 작성
+                                </>
+                              )}
+                            </Button>
+                          </div>
                           <FormControl>
                             <Textarea
                               placeholder="예: 1. 창업에 대한 기초 이해 및 창업 마인드 함양&#10;2. 팀 프로젝트를 통한 협업 능력 향상"
@@ -333,7 +395,29 @@ export default function EducationPlanForm() {
                       name="contents"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>교육 내용 *</FormLabel>
+                          <div className="flex items-center justify-between">
+                            <FormLabel>교육 내용 *</FormLabel>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => generateFieldMutation.mutate({ fieldName: "contents", fieldLabel: "교육 내용" })}
+                              disabled={generatingField === "contents"}
+                              data-testid="button-ai-contents"
+                            >
+                              {generatingField === "contents" ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                  생성 중...
+                                </>
+                              ) : (
+                                <>
+                                  <Wand2 className="w-3 h-3 mr-1" />
+                                  AI 작성
+                                </>
+                              )}
+                            </Button>
+                          </div>
                           <FormControl>
                             <Textarea
                               placeholder="예: - 창업 기초 이론 교육 (4회)&#10;- 아이디어 발굴 워크숍 (2회)"
@@ -355,7 +439,29 @@ export default function EducationPlanForm() {
                       name="expectedOutcomes"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>기대 효과 (선택)</FormLabel>
+                          <div className="flex items-center justify-between">
+                            <FormLabel>기대 효과 (선택)</FormLabel>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => generateFieldMutation.mutate({ fieldName: "expectedOutcomes", fieldLabel: "기대 효과" })}
+                              disabled={generatingField === "expectedOutcomes"}
+                              data-testid="button-ai-expected-outcomes"
+                            >
+                              {generatingField === "expectedOutcomes" ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                  생성 중...
+                                </>
+                              ) : (
+                                <>
+                                  <Wand2 className="w-3 h-3 mr-1" />
+                                  AI 작성
+                                </>
+                              )}
+                            </Button>
+                          </div>
                           <FormControl>
                             <Textarea
                               placeholder="예: 학생들의 창업 역량 향상, 진로 탐색 기회 제공"

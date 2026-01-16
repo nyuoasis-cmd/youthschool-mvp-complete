@@ -253,6 +253,125 @@ ${contextChunks || uploadedTemplate.extractedText.substring(0, 2000)}
     }
   });
 
+  // Generate content for a specific field using AI
+  app.post("/api/documents/generate-field", async (req, res) => {
+    try {
+      const { documentType, fieldName, fieldLabel, context } = req.body;
+      
+      if (!documentType || !fieldName || !fieldLabel) {
+        return res.status(400).json({ error: "documentType, fieldName, and fieldLabel are required" });
+      }
+
+      // Build context-aware prompt for specific field generation
+      const contextDescription = Object.entries(context || {})
+        .filter(([key, value]) => key !== fieldName && value)
+        .map(([key, value]) => `- ${key}: ${value}`)
+        .join("\n");
+
+      let prompt = "";
+      
+      if (documentType === "가정통신문") {
+        if (fieldName === "mainContent") {
+          prompt = `당신은 한국 학교의 가정통신문 작성 전문가입니다.
+다음 정보를 바탕으로 '주요 내용' 부분만 작성해주세요.
+
+[제공된 정보]
+${contextDescription || "제목, 학교명, 목적 등의 정보가 아직 입력되지 않았습니다."}
+
+[작성 지침]
+- 학부모님께 전달할 핵심 내용을 명확하고 간결하게 작성
+- 공손하고 격식 있는 어투 사용
+- 번호 매기기나 구조화된 형식 활용
+- 200-400자 내외로 작성
+
+'주요 내용' 텍스트만 출력하세요 (제목이나 설명 없이):`;
+        } else if (fieldName === "additionalNotes") {
+          prompt = `당신은 한국 학교의 가정통신문 작성 전문가입니다.
+다음 정보를 바탕으로 '추가 사항' 부분만 작성해주세요.
+
+[제공된 정보]
+${contextDescription || "제목, 학교명, 주요 내용 등의 정보가 아직 입력되지 않았습니다."}
+
+[작성 지침]
+- 회신서 제출 안내, 문의처, 기타 참고사항 등 포함
+- 학부모님께서 취해야 할 행동이 있다면 명확히 안내
+- 100-200자 내외로 작성
+
+'추가 사항' 텍스트만 출력하세요 (제목이나 설명 없이):`;
+        }
+      } else if (documentType === "외부 교육 용역 계획서") {
+        if (fieldName === "objectives") {
+          prompt = `당신은 한국 학교의 교육 계획서 작성 전문가입니다.
+다음 정보를 바탕으로 '교육 목표' 부분만 작성해주세요.
+
+[제공된 정보]
+${contextDescription || "프로그램명, 대상 학생 등의 정보가 아직 입력되지 않았습니다."}
+
+[작성 지침]
+- 교육을 통해 달성하고자 하는 구체적인 목표 3-5개 작성
+- 각 목표는 측정 가능하고 명확하게
+- 번호 매기기 형식 사용
+
+'교육 목표' 텍스트만 출력하세요 (제목이나 설명 없이):`;
+        } else if (fieldName === "contents") {
+          prompt = `당신은 한국 학교의 교육 계획서 작성 전문가입니다.
+다음 정보를 바탕으로 '교육 내용' 부분만 작성해주세요.
+
+[제공된 정보]
+${contextDescription || "프로그램명, 교육 목표 등의 정보가 아직 입력되지 않았습니다."}
+
+[작성 지침]
+- 교육 프로그램의 세부 내용과 진행 방식 작성
+- 회차별 또는 주제별로 구조화
+- 구체적인 활동 내용 포함
+- 300-500자 내외로 작성
+
+'교육 내용' 텍스트만 출력하세요 (제목이나 설명 없이):`;
+        } else if (fieldName === "expectedOutcomes") {
+          prompt = `당신은 한국 학교의 교육 계획서 작성 전문가입니다.
+다음 정보를 바탕으로 '기대 효과' 부분만 작성해주세요.
+
+[제공된 정보]
+${contextDescription || "프로그램명, 교육 목표, 교육 내용 등의 정보가 아직 입력되지 않았습니다."}
+
+[작성 지침]
+- 교육 이후 예상되는 효과와 성과
+- 학생, 학교, 지역사회에 미치는 긍정적 영향
+- 150-250자 내외로 작성
+
+'기대 효과' 텍스트만 출력하세요 (제목이나 설명 없이):`;
+        }
+      }
+
+      if (!prompt) {
+        return res.status(400).json({ error: `지원하지 않는 필드입니다: ${fieldName}` });
+      }
+
+      // Generate content using Claude AI
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 1024,
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      });
+
+      const content = message.content[0];
+      const generatedText = content.type === "text" ? content.text : "";
+
+      res.json({ 
+        fieldName, 
+        generatedContent: generatedText.trim() 
+      });
+    } catch (error) {
+      console.error("Error generating field content:", error);
+      res.status(500).json({ error: "AI 내용 생성에 실패했습니다. 잠시 후 다시 시도해주세요." });
+    }
+  });
+
   // Export document as DOCX or PDF
   app.get("/api/documents/:id/export/:format", async (req, res) => {
     try {

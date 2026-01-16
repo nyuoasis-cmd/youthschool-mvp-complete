@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { ArrowLeft, Sparkles, Loader2, FileText, Download, Eye } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2, FileText, Download, Eye, Wand2 } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,7 @@ export default function ParentLetterForm() {
   const [mode, setMode] = useState<"ai" | "manual">("ai");
   const [manualContent, setManualContent] = useState<string>("");
   const [previewDocument, setPreviewDocument] = useState<any>(null);
+  const [generatingField, setGeneratingField] = useState<string | null>(null);
 
   const form = useForm<ParentLetterInput>({
     resolver: zodResolver(parentLetterInputSchema),
@@ -92,6 +93,43 @@ export default function ParentLetterForm() {
       toast({
         title: "문서 저장 실패",
         description: error.message || "문서 저장 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const generateFieldMutation = useMutation({
+    mutationFn: async ({ fieldName, fieldLabel }: { fieldName: string; fieldLabel: string }) => {
+      setGeneratingField(fieldName);
+      const response = await apiRequest("POST", "/api/documents/generate-field", {
+        documentType: "가정통신문",
+        fieldName,
+        fieldLabel,
+        context: {
+          title: form.getValues("title"),
+          schoolName: form.getValues("schoolName"),
+          purpose: form.getValues("purpose"),
+          mainContent: form.getValues("mainContent"),
+          additionalNotes: form.getValues("additionalNotes"),
+          deadline: form.getValues("deadline"),
+          contactInfo: form.getValues("contactInfo"),
+        },
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setGeneratingField(null);
+      form.setValue(data.fieldName as keyof ParentLetterInput, data.generatedContent);
+      toast({
+        title: "AI 생성 완료",
+        description: "내용이 생성되었습니다. 필요시 수정해주세요.",
+      });
+    },
+    onError: (error: Error) => {
+      setGeneratingField(null);
+      toast({
+        title: "AI 생성 실패",
+        description: error.message || "내용 생성 중 오류가 발생했습니다.",
         variant: "destructive",
       });
     },
@@ -257,7 +295,29 @@ export default function ParentLetterForm() {
                       name="mainContent"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>주요 내용 *</FormLabel>
+                          <div className="flex items-center justify-between">
+                            <FormLabel>주요 내용 *</FormLabel>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => generateFieldMutation.mutate({ fieldName: "mainContent", fieldLabel: "주요 내용" })}
+                              disabled={generatingField === "mainContent"}
+                              data-testid="button-ai-main-content"
+                            >
+                              {generatingField === "mainContent" ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                  생성 중...
+                                </>
+                              ) : (
+                                <>
+                                  <Wand2 className="w-3 h-3 mr-1" />
+                                  AI 작성
+                                </>
+                              )}
+                            </Button>
+                          </div>
                           <FormControl>
                             <Textarea
                               placeholder="예: 겨울방학 동안 학생들의 안전한 생활을 위해 다음 사항을 안내드립니다. 외출 시 보호자 동행, 빙판길 조심, 화재 예방 등..."
@@ -317,7 +377,29 @@ export default function ParentLetterForm() {
                       name="additionalNotes"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>추가 사항 (선택)</FormLabel>
+                          <div className="flex items-center justify-between">
+                            <FormLabel>추가 사항 (선택)</FormLabel>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => generateFieldMutation.mutate({ fieldName: "additionalNotes", fieldLabel: "추가 사항" })}
+                              disabled={generatingField === "additionalNotes"}
+                              data-testid="button-ai-additional-notes"
+                            >
+                              {generatingField === "additionalNotes" ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                  생성 중...
+                                </>
+                              ) : (
+                                <>
+                                  <Wand2 className="w-3 h-3 mr-1" />
+                                  AI 작성
+                                </>
+                              )}
+                            </Button>
+                          </div>
                           <FormControl>
                             <Textarea
                               placeholder="예: 첨부된 회신서를 작성하여 담임교사에게 제출해 주시기 바랍니다."
