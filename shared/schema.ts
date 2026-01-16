@@ -92,3 +92,55 @@ export const generateDocumentRequestSchema = z.object({
 });
 
 export type GenerateDocumentRequest = z.infer<typeof generateDocumentRequestSchema>;
+
+// Uploaded HWP Templates table - stores parsed HWP document templates
+export const uploadedTemplates = pgTable("uploaded_templates", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id"), // links to authenticated user
+  fileName: text("file_name").notNull(),
+  originalName: text("original_name").notNull(),
+  documentType: text("document_type"), // 가정통신문, 외부 교육 용역 계획서, etc.
+  extractedText: text("extracted_text"), // full text content
+  extractedMarkdown: text("extracted_markdown"), // markdown format
+  extractedFields: jsonb("extracted_fields").$type<TemplateField[]>(), // parsed fields
+  styleInfo: jsonb("style_info").$type<Record<string, unknown>>(), // style/format info
+  status: text("status").default("pending"), // pending, processing, completed, failed
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+// Template field definition
+export interface TemplateField {
+  name: string;
+  label: string;
+  type: "text" | "textarea" | "date" | "number" | "select";
+  required: boolean;
+  defaultValue?: string;
+  options?: string[]; // for select type
+  description?: string;
+}
+
+export const insertUploadedTemplateSchema = createInsertSchema(uploadedTemplates).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertUploadedTemplate = z.infer<typeof insertUploadedTemplateSchema>;
+export type UploadedTemplate = typeof uploadedTemplates.$inferSelect;
+
+// Document embeddings for RAG
+export const documentEmbeddings = pgTable("document_embeddings", {
+  id: serial("id").primaryKey(),
+  uploadedTemplateId: integer("uploaded_template_id").references(() => uploadedTemplates.id),
+  chunkIndex: integer("chunk_index").notNull(),
+  chunkText: text("chunk_text").notNull(),
+  embedding: text("embedding"), // JSON string of embedding vector (for now, pgvector later)
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const insertDocumentEmbeddingSchema = createInsertSchema(documentEmbeddings).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertDocumentEmbedding = z.infer<typeof insertDocumentEmbeddingSchema>;
+export type DocumentEmbedding = typeof documentEmbeddings.$inferSelect;

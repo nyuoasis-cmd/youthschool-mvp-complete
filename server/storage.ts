@@ -1,7 +1,9 @@
 import { 
   type Template, type InsertTemplate,
   type GeneratedDocument, type InsertGeneratedDocument,
-  templates, generatedDocuments
+  type UploadedTemplate, type InsertUploadedTemplate,
+  type DocumentEmbedding, type InsertDocumentEmbedding,
+  templates, generatedDocuments, uploadedTemplates, documentEmbeddings
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql } from "drizzle-orm";
@@ -21,6 +23,18 @@ export interface IStorage {
   createDocument(doc: InsertGeneratedDocument): Promise<GeneratedDocument>;
   updateDocument(id: number, updates: Partial<GeneratedDocument>): Promise<GeneratedDocument | undefined>;
   deleteDocument(id: number): Promise<boolean>;
+  
+  // Uploaded Templates (HWP)
+  getUploadedTemplate(id: number): Promise<UploadedTemplate | undefined>;
+  getUploadedTemplates(userId?: string): Promise<UploadedTemplate[]>;
+  createUploadedTemplate(template: InsertUploadedTemplate): Promise<UploadedTemplate>;
+  updateUploadedTemplate(id: number, updates: Partial<UploadedTemplate>): Promise<UploadedTemplate | undefined>;
+  deleteUploadedTemplate(id: number): Promise<boolean>;
+  
+  // Document Embeddings (RAG)
+  getEmbeddingsByTemplateId(templateId: number): Promise<DocumentEmbedding[]>;
+  createEmbedding(embedding: InsertDocumentEmbedding): Promise<DocumentEmbedding>;
+  deleteEmbeddingsByTemplateId(templateId: number): Promise<boolean>;
   
   // Stats
   getStats(userId?: string): Promise<{ totalDocuments: number; totalTemplates: number; documentsByType: Record<string, number> }>;
@@ -117,6 +131,55 @@ export class DatabaseStorage implements IStorage {
       totalTemplates: allTemplates.length,
       documentsByType,
     };
+  }
+
+  // Uploaded Templates (HWP)
+  async getUploadedTemplate(id: number): Promise<UploadedTemplate | undefined> {
+    const [template] = await db.select().from(uploadedTemplates).where(eq(uploadedTemplates.id, id));
+    return template || undefined;
+  }
+
+  async getUploadedTemplates(userId?: string): Promise<UploadedTemplate[]> {
+    if (!userId) {
+      return [];
+    }
+    return await db.select().from(uploadedTemplates)
+      .where(eq(uploadedTemplates.userId, userId))
+      .orderBy(desc(uploadedTemplates.createdAt));
+  }
+
+  async createUploadedTemplate(template: InsertUploadedTemplate): Promise<UploadedTemplate> {
+    const [created] = await db.insert(uploadedTemplates).values(template).returning();
+    return created;
+  }
+
+  async updateUploadedTemplate(id: number, updates: Partial<UploadedTemplate>): Promise<UploadedTemplate | undefined> {
+    const [updated] = await db.update(uploadedTemplates).set(updates).where(eq(uploadedTemplates.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deleteUploadedTemplate(id: number): Promise<boolean> {
+    // First delete associated embeddings
+    await this.deleteEmbeddingsByTemplateId(id);
+    const result = await db.delete(uploadedTemplates).where(eq(uploadedTemplates.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // Document Embeddings (RAG)
+  async getEmbeddingsByTemplateId(templateId: number): Promise<DocumentEmbedding[]> {
+    return await db.select().from(documentEmbeddings)
+      .where(eq(documentEmbeddings.uploadedTemplateId, templateId))
+      .orderBy(documentEmbeddings.chunkIndex);
+  }
+
+  async createEmbedding(embedding: InsertDocumentEmbedding): Promise<DocumentEmbedding> {
+    const [created] = await db.insert(documentEmbeddings).values(embedding).returning();
+    return created;
+  }
+
+  async deleteEmbeddingsByTemplateId(templateId: number): Promise<boolean> {
+    const result = await db.delete(documentEmbeddings).where(eq(documentEmbeddings.uploadedTemplateId, templateId));
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Initialize default templates if none exist
