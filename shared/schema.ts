@@ -88,6 +88,7 @@ export type EducationPlanInput = z.infer<typeof educationPlanInputSchema>;
 export const generateDocumentRequestSchema = z.object({
   documentType: z.enum(["가정통신문", "외부 교육 용역 계획서"]),
   templateId: z.number().optional(),
+  uploadedTemplateId: z.number().optional(), // HWP template to use for RAG context
   inputs: z.record(z.string()),
 });
 

@@ -120,7 +120,7 @@ export async function registerRoutes(
         });
       }
 
-      const { documentType, inputs } = parseResult.data;
+      const { documentType, inputs, uploadedTemplateId } = parseResult.data;
 
       // Get the default template for this document type
       const templates = await storage.getTemplatesByType(documentType);
@@ -134,6 +134,31 @@ export async function registerRoutes(
       let prompt = template.promptTemplate;
       for (const [key, value] of Object.entries(inputs)) {
         prompt = prompt.replace(new RegExp(`\\{${key}\\}`, 'g'), value || "(미입력)");
+      }
+
+      // Add RAG context from uploaded template if provided
+      let ragContext = "";
+      if (uploadedTemplateId) {
+        const uploadedTemplate = await storage.getUploadedTemplate(uploadedTemplateId);
+        if (uploadedTemplate && uploadedTemplate.extractedText) {
+          const embeddings = await storage.getEmbeddingsByTemplateId(uploadedTemplateId);
+          const contextChunks = embeddings.slice(0, 5).map(e => e.chunkText).join("\n\n");
+          
+          ragContext = `
+[참조 문서 서식]
+다음은 참고할 수 있는 기존 문서 서식입니다. 이 서식의 구조, 표현 방식, 톤을 참고하여 문서를 작성해주세요:
+
+${contextChunks || uploadedTemplate.extractedText.substring(0, 2000)}
+
+[참조 문서 서식 끝]
+
+`;
+        }
+      }
+
+      // Inject RAG context into prompt
+      if (ragContext) {
+        prompt = ragContext + prompt;
       }
 
       // Create initial document record
