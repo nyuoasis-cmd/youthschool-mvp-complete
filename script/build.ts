@@ -53,6 +53,12 @@ async function buildAll() {
     format: "esm",
     outfile: "dist/index.js",
     target: "node18",
+    banner: {
+      js: [
+        'import { createRequire } from "module";',
+        "const require = createRequire(import.meta.url);",
+      ].join("\n"),
+    },
     define: {
       "process.env.NODE_ENV": '"production"',
     },
