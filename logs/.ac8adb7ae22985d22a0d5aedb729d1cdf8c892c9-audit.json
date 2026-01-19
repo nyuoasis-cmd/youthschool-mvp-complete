@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 7
+    },
+    "auditLog": "/home/claude/youthschool/logs/.ac8adb7ae22985d22a0d5aedb729d1cdf8c892c9-audit.json",
+    "files": [
+        {
+            "date": 1768789590331,
+            "name": "/home/claude/youthschool/logs/combined-2026-01-19.log",
+            "hash": "2af6c24934c43000c332ea716ec610c541672c933259bddb2ff0fb8e08f7b022"
+        }
+    ],
+    "hashType": "sha256"
+}

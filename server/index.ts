@@ -1,6 +1,12 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
+import logger, { logRequest, logError } from "./logger";
+
+if (!process.env.OPENAI_API_KEY) {
+  console.warn("[env] OPENAI_API_KEY가 설정되지 않았습니다. OpenAI 기능이 동작하지 않을 수 있습니다.");
+}
 import { createServer } from "http";
 
 const app = express();
@@ -53,6 +59,9 @@ app.use((req, res, next) => {
       }
 
       log(logLine);
+
+      // 파일에도 로그 기록
+      logRequest(req.method, path, res.statusCode, duration, undefined, capturedJsonResponse);
     }
   });
 
@@ -62,12 +71,23 @@ app.use((req, res, next) => {
 (async () => {
   await registerRoutes(httpServer, app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  app.use("/api", (_req, res) => {
+    res.status(404).json({ error: "API route not found" });
+  });
+
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
+    // 에러를 파일에 기록
+    logError(err, {
+      method: req.method,
+      path: req.path,
+      status,
+      body: req.body,
+    });
+
     res.status(status).json({ message });
-    throw err;
   });
 
   // importantly only setup vite in development and after
@@ -93,6 +113,7 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+      logger.info(`Server started on port ${port}`, { env: process.env.NODE_ENV || "development" });
     },
   );
 })();

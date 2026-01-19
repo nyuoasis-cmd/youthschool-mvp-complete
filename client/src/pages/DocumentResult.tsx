@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
-import { ArrowLeft, Download, Copy, CheckCircle2, FileText, Clock, Loader2, RefreshCw, FileDown } from "lucide-react";
+import { ArrowLeft, Copy, CheckCircle2, FileText, Clock, Loader2, RefreshCw, FileDown, Paperclip, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,11 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import type { GeneratedDocument } from "@shared/schema";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/use-auth";
+import type { DocumentAttachment, GeneratedDocument } from "@shared/schema";
 
 export default function DocumentResult() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
+  const { user, isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
   
   // Check if document was passed via state (for immediate display after generation)
@@ -25,6 +29,82 @@ export default function DocumentResult() {
   
   // Use state document if available, otherwise use fetched document
   const document = stateDocument || fetchedDocument;
+  const canManageAttachments = !!document?.userId && isAuthenticated && `${user?.id}` === document.userId;
+  const attachmentsEndpoint = document ? `/api/documents/${document.id}/attachments` : null;
+
+  const { data: attachments } = useQuery<DocumentAttachment[]>({
+    queryKey: [attachmentsEndpoint],
+    enabled: canManageAttachments && !!attachmentsEndpoint,
+  });
+
+  const uploadAttachmentMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!document) {
+        throw new Error("문서 정보를 찾을 수 없습니다.");
+      }
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(`/api/documents/${document.id}/attachments`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "첨부파일 업로드에 실패했습니다.");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      if (attachmentsEndpoint) {
+        queryClient.invalidateQueries({ queryKey: [attachmentsEndpoint] });
+      }
+      toast({
+        title: "업로드 완료",
+        description: "첨부파일이 저장되었습니다.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "업로드 실패",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: async (attachmentId: number) => {
+      const response = await fetch(`/api/attachments/${attachmentId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "첨부파일 삭제에 실패했습니다.");
+      }
+    },
+    onSuccess: () => {
+      if (attachmentsEndpoint) {
+        queryClient.invalidateQueries({ queryKey: [attachmentsEndpoint] });
+      }
+      toast({
+        title: "삭제 완료",
+        description: "첨부파일이 삭제되었습니다.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "삭제 실패",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleCopy = async () => {
     if (!document?.generatedContent) return;
@@ -73,6 +153,31 @@ export default function DocumentResult() {
       title: "다운로드 시작",
       description: `${format.toUpperCase()} 파일이 다운로드됩니다.`,
     });
+  };
+
+  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+
+    for (const file of files) {
+      await uploadAttachmentMutation.mutateAsync(file);
+    }
+    e.target.value = "";
+  };
+
+  const formatFileSize = (size: number) => {
+    if (size < 1024) return `${size}B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)}KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)}MB`;
+  };
+
+  const formatAttachmentDate = (date: string | Date | null) => {
+    if (!date) return "";
+    return new Intl.DateTimeFormat("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(date));
   };
 
   // Only show loading if we're fetching and don't have state document
@@ -208,6 +313,107 @@ export default function DocumentResult() {
             </div>
           </CardHeader>
         </Card>
+
+        {/* Attachments */}
+        {document && (
+          <Card className="mb-6">
+            <CardHeader>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Paperclip className="w-4 h-4 text-primary" />
+                    첨부파일
+                  </CardTitle>
+                  <CardDescription>
+                    관련 자료를 첨부하여 문서와 함께 관리할 수 있습니다.
+                  </CardDescription>
+                </div>
+                {canManageAttachments && (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      multiple
+                      onChange={handleAttachmentUpload}
+                      className="hidden"
+                      id="attachment-upload"
+                      disabled={uploadAttachmentMutation.isPending}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      data-testid="button-upload-attachment"
+                      disabled={uploadAttachmentMutation.isPending}
+                      onClick={() => {
+                        const input = window.document.getElementById("attachment-upload") as HTMLInputElement | null;
+                        input?.click();
+                      }}
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      {uploadAttachmentMutation.isPending ? "업로드 중..." : "파일 첨부"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {!canManageAttachments ? (
+                <div className="text-sm text-muted-foreground">
+                  첨부파일 기능은 로그인 후 생성한 문서에서만 사용할 수 있습니다.
+                </div>
+              ) : attachments && attachments.length > 0 ? (
+                <div className="space-y-3">
+                  {attachments.map((attachment) => (
+                    <div
+                      key={attachment.id}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border rounded-lg"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-md bg-muted">
+                          <Paperclip className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{attachment.originalName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatFileSize(attachment.fileSize)} · {formatAttachmentDate(attachment.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const url = `/api/attachments/${attachment.id}/download`;
+                            const link = window.document.createElement("a");
+                            link.href = url;
+                            link.click();
+                          }}
+                          data-testid={`button-download-attachment-${attachment.id}`}
+                        >
+                          <FileDown className="w-4 h-4 mr-2" />
+                          다운로드
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteAttachmentMutation.mutate(attachment.id)}
+                          disabled={deleteAttachmentMutation.isPending}
+                          data-testid={`button-delete-attachment-${attachment.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          삭제
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">첨부된 파일이 없습니다.</div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Generated Content */}
         <Card>

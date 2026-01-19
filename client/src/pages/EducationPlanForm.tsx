@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { educationPlanInputSchema, type EducationPlanInput } from "@shared/schema";
+import { HwpReferenceUpload } from "@/components/HwpReferenceUpload";
 
 export default function EducationPlanForm() {
   const [, setLocation] = useLocation();
@@ -31,6 +32,8 @@ export default function EducationPlanForm() {
   const [manualContent, setManualContent] = useState<string>("");
   const [previewDocument, setPreviewDocument] = useState<any>(null);
   const [generatingField, setGeneratingField] = useState<string | null>(null);
+  const [referenceFileId, setReferenceFileId] = useState<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const form = useForm<EducationPlanInput>({
     resolver: zodResolver(educationPlanInputSchema),
@@ -53,6 +56,7 @@ export default function EducationPlanForm() {
       const response = await apiRequest("POST", "/api/documents/generate", {
         documentType: "외부 교육 용역 계획서",
         inputs: data,
+        uploadedTemplateId: referenceFileId ?? undefined,
       });
       return response.json();
     },
@@ -98,6 +102,39 @@ export default function EducationPlanForm() {
       });
     },
   });
+
+  const saveDocument = async (status: "draft" | "completed") => {
+    setIsSaving(true);
+    try {
+      const payload = {
+        documentType: "외부 교육 용역 계획서",
+        title: form.getValues("title") || "외부 교육 용역 계획서",
+        schoolName: form.getValues("schoolName"),
+        metadata: {
+          program: form.getValues("programName"),
+          targetDate: form.getValues("duration"),
+          targetGrade: form.getValues("targetStudents"),
+        },
+        content: form.getValues("contents") || manualContent,
+        generatedContent: previewDocument?.generatedContent,
+        referenceFileId,
+        status,
+      };
+      await apiRequest("POST", "/api/documents", payload);
+      toast({
+        title: status === "draft" ? "임시 저장 완료" : "문서 저장 완료",
+        description: "문서가 내역에 저장되었습니다.",
+      });
+    } catch (error) {
+      toast({
+        title: "문서 저장 실패",
+        description: error instanceof Error ? error.message : "문서 저장 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const generateFieldMutation = useMutation({
     mutationFn: async ({ fieldName, fieldLabel }: { fieldName: string; fieldLabel: string }) => {
@@ -475,7 +512,28 @@ export default function EducationPlanForm() {
                       )}
                     />
 
+                    <HwpReferenceUpload
+                      onUploaded={(fileId) => setReferenceFileId(fileId)}
+                      onClear={() => setReferenceFileId(null)}
+                    />
+
                     <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isSaving}
+                        onClick={() => saveDocument("draft")}
+                      >
+                        {isSaving ? "저장 중..." : "임시 저장"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isSaving}
+                        onClick={() => saveDocument("completed")}
+                      >
+                        {isSaving ? "저장 중..." : "문서 저장"}
+                      </Button>
                       <Button
                         type="submit"
                         size="lg"
