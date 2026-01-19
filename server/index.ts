@@ -4,6 +4,14 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import logger, { logRequest, logError } from "./logger";
 
+process.on("unhandledRejection", (reason) => {
+  console.error("[fatal] Unhandled rejection:", reason);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("[fatal] Uncaught exception:", error);
+});
+
 if (!process.env.OPENAI_API_KEY) {
   console.warn("[env] OPENAI_API_KEY가 설정되지 않았습니다. OpenAI 기능이 동작하지 않을 수 있습니다.");
 }
