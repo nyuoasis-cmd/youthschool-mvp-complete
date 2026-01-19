@@ -15,6 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { CheckCircle, XCircle, Loader2, Eye, EyeOff, ArrowLeft } from "lucide-react";
 
 const resetPasswordSchema = z.object({
@@ -33,9 +34,9 @@ type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
 export default function ResetPassword() {
   const { toast } = useToast();
+  const { resetPassword, isResettingPassword, validateResetToken } = useAuth();
   const search = useSearch();
   const [, setLocation] = useLocation();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isValidating, setIsValidating] = useState(true);
   const [isTokenValid, setIsTokenValid] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -65,10 +66,8 @@ export default function ResetPassword() {
       }
 
       try {
-        const response = await fetch(`/api/auth/validate-reset-token?token=${token}`);
-        const data = await response.json();
-
-        if (response.ok && data.valid) {
+        const data = await validateResetToken(token);
+        if (data.valid) {
           setIsTokenValid(true);
         } else {
           setIsTokenValid(false);
@@ -84,23 +83,8 @@ export default function ResetPassword() {
   }, [token]);
 
   const onSubmit = async (data: ResetPasswordInput) => {
-    setIsSubmitting(true);
     try {
-      const response = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          password: data.password,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "비밀번호 재설정에 실패했습니다");
-      }
-
+      await resetPassword({ token, password: data.password });
       setIsSuccess(true);
     } catch (error) {
       toast({
@@ -108,8 +92,6 @@ export default function ResetPassword() {
         description: error instanceof Error ? error.message : "비밀번호 재설정에 실패했습니다",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -276,9 +258,9 @@ export default function ResetPassword() {
           <Button
             type="submit"
             className="w-full"
-            disabled={isSubmitting}
+            disabled={isResettingPassword}
           >
-            {isSubmitting ? (
+            {isResettingPassword ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 처리 중...

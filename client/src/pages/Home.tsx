@@ -1,5 +1,5 @@
-import { Link, useLocation } from "wouter";
-import { useMemo, useRef, useState } from "react";
+import { Link, useLocation, useSearch } from "wouter";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -147,6 +147,7 @@ const features = [
 export default function Home() {
   const { user, isLoading, isAuthenticated, logout, isLoggingOut } = useAuth();
   const [, setLocation] = useLocation();
+  const search = useSearch();
   const { toast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState<(typeof CATEGORY_OPTIONS)[number]>("전체");
   const [selectedLevel, setSelectedLevel] = useState<(typeof LEVEL_OPTIONS)[number]>("전체");
@@ -173,6 +174,25 @@ export default function Home() {
     "학부모 상담 기록",
     "현장체험학습 계획서",
   ];
+
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    const tab = params.get("tab");
+    if (tab === "tools" || tab === "chat") {
+      setActiveSection(tab);
+      return;
+    }
+    if (typeof window === "undefined") return;
+    const saved = window.sessionStorage.getItem("home.activeSection");
+    if (saved === "tools" || saved === "chat") {
+      setActiveSection(saved);
+    }
+  }, [search]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.setItem("home.activeSection", activeSection);
+  }, [activeSection]);
 
   const showCharCount = chatInput.length >= 9000;
 

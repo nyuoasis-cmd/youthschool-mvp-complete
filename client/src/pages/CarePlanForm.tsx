@@ -251,9 +251,18 @@ export default function CarePlanForm() {
     },
   });
 
+  const getSafeStorage = () => {
+    if (typeof window === "undefined") return null;
+    try {
+      return window.localStorage;
+    } catch {
+      return null;
+    }
+  };
+
   const flashHighlight = (fieldKey: string) => {
     setHighlightedField(fieldKey);
-    window.setTimeout(() => {
+    setTimeout(() => {
       setHighlightedField((current) => (current === fieldKey ? null : current));
     }, 1000);
   };
@@ -374,8 +383,12 @@ export default function CarePlanForm() {
 
   const handleSaveDraft = () => {
     try {
+      const storage = getSafeStorage();
+      if (!storage) {
+        throw new Error("localStorage unavailable");
+      }
       const payload = buildDraftPayload();
-      window.localStorage.setItem(draftStorageKey, JSON.stringify(payload));
+      storage.setItem(draftStorageKey, JSON.stringify(payload));
       toast({
         title: "임시 저장 완료",
         description: "작성 중인 내용이 브라우저에 저장되었습니다.",
@@ -391,7 +404,11 @@ export default function CarePlanForm() {
 
   const handleLoadDraft = () => {
     try {
-      const raw = window.localStorage.getItem(draftStorageKey);
+      const storage = getSafeStorage();
+      if (!storage) {
+        throw new Error("localStorage unavailable");
+      }
+      const raw = storage.getItem(draftStorageKey);
       if (!raw) {
         toast({
           title: "임시 저장 없음",
@@ -415,7 +432,10 @@ export default function CarePlanForm() {
   };
 
   const handleClearDraft = () => {
-    window.localStorage.removeItem(draftStorageKey);
+    const storage = getSafeStorage();
+    if (storage) {
+      storage.removeItem(draftStorageKey);
+    }
     toast({
       title: "임시 저장 삭제",
       description: "브라우저에 저장된 임시 데이터가 삭제되었습니다.",
@@ -423,7 +443,9 @@ export default function CarePlanForm() {
   };
 
   useEffect(() => {
-    const raw = window.localStorage.getItem(draftStorageKey);
+    const storage = getSafeStorage();
+    if (!storage) return;
+    const raw = storage.getItem(draftStorageKey);
     if (!raw) return;
     try {
       const payload = JSON.parse(raw) as ReturnType<typeof buildDraftPayload>;
@@ -433,7 +455,7 @@ export default function CarePlanForm() {
         description: "이전에 저장한 내용을 자동으로 불러왔습니다.",
       });
     } catch {
-      window.localStorage.removeItem(draftStorageKey);
+      storage.removeItem(draftStorageKey);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

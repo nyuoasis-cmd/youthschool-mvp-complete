@@ -1,14 +1,14 @@
-import { useState } from "react";
 import { Link, useSearch } from "wouter";
 import { AuthLayout } from "@/components/auth";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { CheckCircle, Clock, Mail, Loader2 } from "lucide-react";
 
 export default function SignupComplete() {
   const search = useSearch();
   const { toast } = useToast();
-  const [isResending, setIsResending] = useState(false);
+  const { resendVerification, isResendingVerification } = useAuth();
 
   const params = new URLSearchParams(search);
   const userType = params.get("type") || "teacher";
@@ -20,20 +20,8 @@ export default function SignupComplete() {
   const handleResendEmail = async () => {
     if (!email) return;
 
-    setIsResending(true);
     try {
-      const response = await fetch("/api/auth/resend-verification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: decodeURIComponent(email) }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "발송에 실패했습니다");
-      }
-
+      await resendVerification({ email: decodeURIComponent(email) });
       toast({
         title: "발송 완료",
         description: "인증 메일이 재발송되었습니다",
@@ -44,8 +32,6 @@ export default function SignupComplete() {
         description: error instanceof Error ? error.message : "발송에 실패했습니다",
         variant: "destructive",
       });
-    } finally {
-      setIsResending(false);
     }
   };
 
@@ -129,9 +115,9 @@ export default function SignupComplete() {
             <Button
               variant="outline"
               onClick={handleResendEmail}
-              disabled={isResending}
+              disabled={isResendingVerification}
             >
-              {isResending ? (
+              {isResendingVerification ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   발송 중...

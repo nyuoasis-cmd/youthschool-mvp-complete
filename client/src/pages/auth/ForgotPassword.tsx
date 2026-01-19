@@ -15,6 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { Mail, ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
 
 const forgotPasswordSchema = z.object({
@@ -25,7 +26,7 @@ type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
 export default function ForgotPassword() {
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { requestPasswordReset, isRequestingPasswordReset } = useAuth();
   const [isEmailSent, setIsEmailSent] = useState(false);
   const [sentEmail, setSentEmail] = useState("");
 
@@ -37,20 +38,8 @@ export default function ForgotPassword() {
   });
 
   const onSubmit = async (data: ForgotPasswordInput) => {
-    setIsSubmitting(true);
     try {
-      const response = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "요청에 실패했습니다");
-      }
-
+      await requestPasswordReset(data);
       setSentEmail(data.email);
       setIsEmailSent(true);
     } catch (error) {
@@ -59,28 +48,14 @@ export default function ForgotPassword() {
         description: error instanceof Error ? error.message : "요청에 실패했습니다",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   const handleResend = async () => {
     if (!sentEmail) return;
 
-    setIsSubmitting(true);
     try {
-      const response = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: sentEmail }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "요청에 실패했습니다");
-      }
-
+      await requestPasswordReset({ email: sentEmail });
       toast({
         title: "발송 완료",
         description: "비밀번호 재설정 메일이 재발송되었습니다",
@@ -91,8 +66,6 @@ export default function ForgotPassword() {
         description: error instanceof Error ? error.message : "요청에 실패했습니다",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -139,9 +112,9 @@ export default function ForgotPassword() {
             <Button
               variant="outline"
               onClick={handleResend}
-              disabled={isSubmitting}
+              disabled={isRequestingPasswordReset}
             >
-              {isSubmitting ? (
+              {isRequestingPasswordReset ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   발송 중...
@@ -193,9 +166,9 @@ export default function ForgotPassword() {
           <Button
             type="submit"
             className="w-full"
-            disabled={isSubmitting}
+            disabled={isRequestingPasswordReset}
           >
-            {isSubmitting ? (
+            {isRequestingPasswordReset ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 처리 중...

@@ -62,6 +62,33 @@ interface RegisterResult {
   email: string;
 }
 
+interface PasswordResetRequest {
+  email: string;
+}
+
+interface PasswordResetPayload {
+  token: string;
+  password: string;
+}
+
+interface PasswordResetResponse {
+  success: boolean;
+  message: string;
+}
+
+interface ResendVerificationPayload {
+  email: string;
+}
+
+interface ResendVerificationResponse {
+  success: boolean;
+  message: string;
+}
+
+interface ValidateResetTokenResponse {
+  valid: boolean;
+}
+
 async function login(data: LoginInput): Promise<AuthUser> {
   const response = await fetch("/api/auth/login", {
     method: "POST",
@@ -95,6 +122,65 @@ async function register(payload: RegisterPayload): Promise<RegisterResult> {
   return result;
 }
 
+async function requestPasswordReset(payload: PasswordResetRequest): Promise<PasswordResetResponse> {
+  const response = await fetch("/api/auth/forgot-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || "요청에 실패했습니다");
+  }
+
+  return result;
+}
+
+async function resetPassword(payload: PasswordResetPayload): Promise<PasswordResetResponse> {
+  const response = await fetch("/api/auth/reset-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || "비밀번호 재설정에 실패했습니다");
+  }
+
+  return result;
+}
+
+async function resendVerification(payload: ResendVerificationPayload): Promise<ResendVerificationResponse> {
+  const response = await fetch("/api/auth/resend-verification", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || "요청에 실패했습니다");
+  }
+
+  return result;
+}
+
+async function validateResetToken(token: string): Promise<ValidateResetTokenResponse> {
+  const response = await fetch(`/api/auth/validate-reset-token?token=${encodeURIComponent(token)}`);
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || "토큰 확인에 실패했습니다");
+  }
+
+  return result;
+}
+
 export function useAuth() {
   const queryClient = useQueryClient();
   const { data: user, isLoading, error } = useQuery<AuthUser | null>({
@@ -123,6 +209,22 @@ export function useAuth() {
     mutationFn: register,
   });
 
+  const requestPasswordResetMutation = useMutation({
+    mutationFn: requestPasswordReset,
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: resetPassword,
+  });
+
+  const resendVerificationMutation = useMutation({
+    mutationFn: resendVerification,
+  });
+
+  const validateResetTokenMutation = useMutation({
+    mutationFn: validateResetToken,
+  });
+
   return {
     user,
     isLoading,
@@ -135,5 +237,12 @@ export function useAuth() {
     loginError: loginMutation.error,
     register: registerMutation.mutateAsync,
     isRegistering: registerMutation.isPending,
+    requestPasswordReset: requestPasswordResetMutation.mutateAsync,
+    isRequestingPasswordReset: requestPasswordResetMutation.isPending,
+    resetPassword: resetPasswordMutation.mutateAsync,
+    isResettingPassword: resetPasswordMutation.isPending,
+    resendVerification: resendVerificationMutation.mutateAsync,
+    isResendingVerification: resendVerificationMutation.isPending,
+    validateResetToken: validateResetTokenMutation.mutateAsync,
   };
 }
