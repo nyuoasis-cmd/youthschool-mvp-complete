@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -121,6 +122,7 @@ export default function Profile() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const { logout, isLoggingOut } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -284,18 +286,18 @@ export default function Profile() {
     },
   });
 
-  // Logout mutation
-  const logoutMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch("/api/auth/logout", { method: "POST" });
-      if (!response.ok) throw new Error("로그아웃에 실패했습니다");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.clear();
+  const handleLogout = async () => {
+    try {
+      await logout();
       setLocation("/");
-    },
-  });
+    } catch (error) {
+      toast({
+        title: "오류",
+        description: error instanceof Error ? error.message : "로그아웃에 실패했습니다",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleProfileSubmit = (data: ProfileInput) => {
     updateProfileMutation.mutate(data);
@@ -846,10 +848,10 @@ export default function Profile() {
               <div className="flex flex-wrap gap-4">
                 <Button
                   variant="outline"
-                  onClick={() => logoutMutation.mutate()}
-                  disabled={logoutMutation.isPending}
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
                 >
-                  {logoutMutation.isPending ? (
+                  {isLoggingOut ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       로그아웃 중...

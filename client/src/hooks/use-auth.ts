@@ -47,6 +47,21 @@ interface LoginInput {
   rememberMe?: boolean;
 }
 
+interface RegisterPayload {
+  userType: UserType | string;
+  step1: Record<string, unknown>;
+  step2: Record<string, unknown>;
+  terms: Record<string, unknown>;
+}
+
+interface RegisterResult {
+  success: boolean;
+  message: string;
+  userId: number;
+  userType: UserType;
+  email: string;
+}
+
 async function login(data: LoginInput): Promise<AuthUser> {
   const response = await fetch("/api/auth/login", {
     method: "POST",
@@ -62,6 +77,22 @@ async function login(data: LoginInput): Promise<AuthUser> {
 
   const result = await response.json();
   return result.user;
+}
+
+async function register(payload: RegisterPayload): Promise<RegisterResult> {
+  const response = await fetch("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || "회원가입에 실패했습니다");
+  }
+
+  return result;
 }
 
 export function useAuth() {
@@ -88,15 +119,21 @@ export function useAuth() {
     },
   });
 
+  const registerMutation = useMutation({
+    mutationFn: register,
+  });
+
   return {
     user,
     isLoading,
     isAuthenticated: !!user,
     userType: user?.userType || null,
     login: loginMutation.mutateAsync,
-    logout: logoutMutation.mutate,
+    logout: logoutMutation.mutateAsync,
     isLoggingIn: loginMutation.isPending,
     isLoggingOut: logoutMutation.isPending,
     loginError: loginMutation.error,
+    register: registerMutation.mutateAsync,
+    isRegistering: registerMutation.isPending,
   };
 }

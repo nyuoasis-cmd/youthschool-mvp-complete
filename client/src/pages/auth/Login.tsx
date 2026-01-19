@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useLocation, useSearch } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
 import { z } from "zod";
 import { AuthLayout } from "@/components/auth";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const search = useSearch();
   const { toast } = useToast();
+  const { login, isLoggingIn } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -70,26 +72,15 @@ export default function Login() {
     setErrorMessage(null);
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "로그인에 실패했습니다");
-      }
+      const user = await login(data);
 
       toast({
         title: "로그인 성공",
-        description: `${result.user.name}님, 환영합니다!`,
+        description: `${user.name}님, 환영합니다!`,
       });
 
       // Redirect based on user type
-      const redirectPath = getRedirectPath(result.user.userType);
+      const redirectPath = getRedirectPath(user.userType);
       setLocation(redirectPath);
     } catch (error) {
       setErrorMessage(
@@ -136,7 +127,7 @@ export default function Login() {
               type="email"
               placeholder="example@email.com"
               className="pl-10"
-              disabled={isLoading}
+              disabled={isLoading || isLoggingIn}
               {...register("email")}
             />
           </div>
@@ -154,7 +145,7 @@ export default function Login() {
               type={showPassword ? "text" : "password"}
               placeholder="비밀번호를 입력하세요"
               className="pl-10 pr-10"
-              disabled={isLoading}
+              disabled={isLoading || isLoggingIn}
               {...register("password")}
             />
             <button
@@ -194,8 +185,8 @@ export default function Login() {
           </Link>
         </div>
 
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? (
+          <Button type="submit" className="w-full" disabled={isLoading || isLoggingIn}>
+            {isLoading || isLoggingIn ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               로그인 중...

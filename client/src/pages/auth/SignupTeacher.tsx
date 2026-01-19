@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { Loader2, Eye, EyeOff, Mail, Lock, User, School, MapPin, BookOpen, Briefcase } from "lucide-react";
 import { SUBJECT_OPTIONS } from "@shared/models/auth";
 
@@ -51,6 +52,7 @@ type Step3Data = z.infer<typeof step3Schema>;
 export default function SignupTeacher() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { register: registerUser, isRegistering } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -173,22 +175,12 @@ export default function SignupTeacher() {
 
     setIsLoading(true);
     try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userType: "teacher",
-          step1: step1Data,
-          step2: step2Data,
-          terms: data,
-        }),
+      const result = await registerUser({
+        userType: "teacher",
+        step1: step1Data,
+        step2: step2Data,
+        terms: data,
       });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "회원가입에 실패했습니다");
-      }
 
       toast({
         title: "회원가입 완료",
@@ -502,8 +494,8 @@ export default function SignupTeacher() {
             <Button type="button" variant="outline" onClick={() => setCurrentStep(2)}>
               이전 단계
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? (
+            <Button type="submit" disabled={isLoading || isRegistering}>
+              {isLoading || isRegistering ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   가입 중...

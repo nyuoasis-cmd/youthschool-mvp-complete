@@ -145,7 +145,7 @@ const features = [
 ];
 
 export default function Home() {
-  const { user, isLoading, isAuthenticated } = useAuth();
+  const { user, isLoading, isAuthenticated, logout, isLoggingOut } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState<(typeof CATEGORY_OPTIONS)[number]>("전체");
@@ -240,6 +240,19 @@ export default function Home() {
     setAttachedFiles(files);
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setLocation("/login");
+    } catch (error) {
+      toast({
+        title: "오류",
+        description: error instanceof Error ? error.message : "로그아웃에 실패했습니다",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -280,11 +293,17 @@ export default function Home() {
                     <Link href="/mypage">마이페이지</Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/login" className="flex items-center gap-2 text-destructive" data-testid="button-logout">
-                      <LogOut className="h-4 w-4" />
-                      로그아웃
-                    </Link>
+                  <DropdownMenuItem
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      handleLogout();
+                    }}
+                    disabled={isLoggingOut}
+                    className="flex items-center gap-2 text-destructive"
+                    data-testid="button-logout"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    로그아웃
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
