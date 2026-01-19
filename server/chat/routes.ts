@@ -8,7 +8,17 @@ import crypto from "crypto";
 import OpenAI from "openai";
 
 const router = Router();
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let openaiClient: OpenAI | null = null;
+const getOpenAiClient = () => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+  if (!openaiClient) {
+    openaiClient = new OpenAI({ apiKey });
+  }
+  return openaiClient;
+};
 
 const createChatSchema = z.object({
   title: z.string().max(200).optional(),
@@ -32,11 +42,12 @@ const getDefaultTitle = (content: string) => {
 };
 
 async function generateAssistantReply(content: string) {
-  if (!process.env.OPENAI_API_KEY) {
+  const client = getOpenAiClient();
+  if (!client) {
     return "현재 AI 응답 생성이 준비 중입니다. 잠시 후 다시 시도해주세요.";
   }
 
-  const completion = await openai.chat.completions.create({
+  const completion = await client.chat.completions.create({
     model: "gpt-4o-mini",
     max_tokens: 800,
     temperature: 0.7,

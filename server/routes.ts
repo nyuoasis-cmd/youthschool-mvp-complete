@@ -68,10 +68,18 @@ const anthropic = new Anthropic({
   baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
 });
 
-// Initialize OpenAI client for afterschool AI generation
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize OpenAI client lazily to avoid startup crash when key is missing
+let openaiClient: OpenAI | null = null;
+const getOpenAiClient = () => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+  if (!openaiClient) {
+    openaiClient = new OpenAI({ apiKey });
+  }
+  return openaiClient;
+};
 
 export async function registerRoutes(
   httpServer: Server,
@@ -538,7 +546,11 @@ ${crawlerSections.join("\n\n")}
       const hasOpenAiKey = !!process.env.OPENAI_API_KEY;
 
       const generateWithOpenAI = async () => {
-        const completion = await openai.chat.completions.create({
+        const client = getOpenAiClient();
+        if (!client) {
+          throw new Error("OPENAI_API_KEY is not set.");
+        }
+        const completion = await client.chat.completions.create({
           model: "gpt-4o-mini",
           max_tokens: 1600,
           temperature: 0.7,
@@ -711,7 +723,11 @@ ${contextDescription || "프로그램명, 교육 목표, 교육 내용 등의 �
       let generatedText = "";
 
       const generateWithOpenAI = async () => {
-        const completion = await openai.chat.completions.create({
+        const client = getOpenAiClient();
+        if (!client) {
+          throw new Error("OPENAI_API_KEY is not set.");
+        }
+        const completion = await client.chat.completions.create({
           model: "gpt-4o-mini",
           max_tokens: 800,
           temperature: 0.7,
@@ -987,7 +1003,11 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
       let generatedText = "";
 
       const generateWithOpenAI = async () => {
-        const completion = await openai.chat.completions.create({
+        const client = getOpenAiClient();
+        if (!client) {
+          throw new Error("OPENAI_API_KEY is not set.");
+        }
+        const completion = await client.chat.completions.create({
           model: "gpt-4o-mini",
           max_tokens: 900,
           temperature: 0.7,
@@ -1227,7 +1247,11 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
       let generatedText = "";
 
       const generateWithOpenAI = async () => {
-        const completion = await openai.chat.completions.create({
+        const client = getOpenAiClient();
+        if (!client) {
+          throw new Error("OPENAI_API_KEY is not set.");
+        }
+        const completion = await client.chat.completions.create({
           model: "gpt-4o-mini",
           max_tokens: 900,
           temperature: 0.7,
@@ -1464,7 +1488,11 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
       let generatedText = "";
 
       const generateWithOpenAI = async () => {
-        const completion = await openai.chat.completions.create({
+        const client = getOpenAiClient();
+        if (!client) {
+          throw new Error("OPENAI_API_KEY is not set.");
+        }
+        const completion = await client.chat.completions.create({
           model: "gpt-4o-mini",
           max_tokens: 900,
           temperature: 0.7,
@@ -1728,7 +1756,11 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
       let generatedText = "";
 
       const generateWithOpenAI = async () => {
-        const completion = await openai.chat.completions.create({
+        const client = getOpenAiClient();
+        if (!client) {
+          throw new Error("OPENAI_API_KEY is not set.");
+        }
+        const completion = await client.chat.completions.create({
           model: "gpt-4o-mini",
           max_tokens: 900,
           temperature: 0.7,
@@ -2005,7 +2037,11 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
       let generatedText = "";
 
       const generateWithOpenAI = async () => {
-        const completion = await openai.chat.completions.create({
+        const client = getOpenAiClient();
+        if (!client) {
+          throw new Error("OPENAI_API_KEY is not set.");
+        }
+        const completion = await client.chat.completions.create({
           model: "gpt-4o-mini",
           max_tokens: 900,
           temperature: 0.7,
@@ -2600,8 +2636,16 @@ ${context?.policies?.join(", ") || "공개 모집 원칙, 안전 관리 강화"}
         });
       }
 
+      const client = getOpenAiClient();
+      if (!client) {
+        return res.status(500).json({
+          success: false,
+          error: "AI API 키가 설정되지 않았습니다.",
+        });
+      }
+
       // Generate content using OpenAI GPT-3.5-turbo
-      const completion = await openai.chat.completions.create({
+      const completion = await client.chat.completions.create({
         model: "gpt-3.5-turbo",
         max_tokens: 500,
         temperature: 0.7,
@@ -2757,7 +2801,11 @@ ${contextText}
         const content = message.content[0];
         generatedText = content.type === "text" ? content.text.trim() : "";
       } else if (hasOpenAiKey) {
-        const completion = await openai.chat.completions.create({
+        const client = getOpenAiClient();
+        if (!client) {
+          throw new Error("OPENAI_API_KEY is not set.");
+        }
+        const completion = await client.chat.completions.create({
           model: "gpt-4o-mini",
           max_tokens: 600,
           temperature: 0.7,
