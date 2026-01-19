@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, boolean, integer, jsonb, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { users } from "./models/auth";
 
 // Re-export auth models (Replit Auth integration)
 export * from "./models/auth";
@@ -368,3 +369,37 @@ export const insertDocumentEmbeddingSchema = createInsertSchema(documentEmbeddin
 
 export type InsertDocumentEmbedding = z.infer<typeof insertDocumentEmbeddingSchema>;
 export type DocumentEmbedding = typeof documentEmbeddings.$inferSelect;
+
+// Chats
+export const chats = pgTable("chats", {
+  chatId: varchar("chat_id", { length: 32 }).primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  category: varchar("category", { length: 50 }),
+  isPinned: boolean("is_pinned").default(false),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
+  deletedAt: timestamp("deleted_at"),
+});
+
+export const chatMessages = pgTable("chat_messages", {
+  messageId: varchar("message_id", { length: 32 }).primaryKey(),
+  chatId: varchar("chat_id", { length: 32 }).references(() => chats.chatId, { onDelete: "cascade" }).notNull(),
+  role: varchar("role", { length: 20 }).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const insertChatSchema = createInsertSchema(chats).omit({
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+});
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
+  createdAt: true,
+});
+
+export type Chat = typeof chats.$inferSelect;
+export type InsertChat = z.infer<typeof insertChatSchema>;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;

@@ -11,6 +11,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { setupAuth, isAuthenticated, isSystemAdmin, hasRole, requireFullAuth } from "./auth";
 import { adminRouter } from "./admin/routes";
+import { chatRouter } from "./chat/routes";
 import { USER_TYPES } from "@shared/models/auth";
 import multer from "multer";
 import { parseHwpFile, chunkText } from "./hwpParser";
@@ -79,6 +80,7 @@ export async function registerRoutes(
   // Setup authentication (MUST be before other routes)
   await setupAuth(app);
   app.use("/api/admin", adminRouter);
+  app.use("/api", chatRouter);
 
   // Initialize default templates if needed
   await storage.initializeDefaultTemplates();

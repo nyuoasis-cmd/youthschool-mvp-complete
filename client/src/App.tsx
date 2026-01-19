@@ -27,6 +27,7 @@ import DocumentResult from "@/pages/DocumentResult";
 import History from "@/pages/History";
 import Admin from "@/pages/Admin";
 import Profile from "@/pages/Profile";
+import Chat from "@/pages/Chat";
 // Auth pages
 import Login from "@/pages/auth/Login";
 import SignupSelect from "@/pages/auth/SignupSelect";
@@ -73,6 +74,8 @@ function Router() {
       <Route path="/result/:id" component={DocumentResult} />
       <Route path="/history" component={History} />
       <Route path="/admin" component={Admin} />
+      <Route path="/chat" component={Chat} />
+      <Route path="/chat/:chatId" component={Chat} />
       <Route component={NotFound} />
     </Switch>
   );
