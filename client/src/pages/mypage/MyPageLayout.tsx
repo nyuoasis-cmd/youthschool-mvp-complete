@@ -30,7 +30,7 @@ export default function MyPageLayout({ activePath, children }: MyPageLayoutProps
       <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="text-lg font-semibold text-foreground">
-            유스쿨
+            티처메이트
           </Link>
         </div>
       </header>

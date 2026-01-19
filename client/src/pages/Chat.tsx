@@ -157,7 +157,7 @@ export default function Chat() {
             <Menu className="h-5 w-5" />
           </Button>
           <Bot className="h-5 w-5 text-primary" />
-          <span className="font-semibold">YouthSchool AI</span>
+          <span className="font-semibold">티처메이트 AI</span>
           <Badge variant="secondary">MVP</Badge>
         </div>
         <div className="flex items-center gap-3 text-sm text-muted-foreground">

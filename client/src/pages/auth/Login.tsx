@@ -118,7 +118,7 @@ export default function Login() {
   return (
     <AuthLayout
       title="로그인"
-      subtitle="교육 행정 자동화의 시작, 유스쿨입니다"
+      subtitle="교육 행정 자동화의 시작, 티처메이트입니다"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {errorMessage && (

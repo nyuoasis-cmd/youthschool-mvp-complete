@@ -12,7 +12,7 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <Link href="/">
           <h1 className="text-center text-3xl font-bold text-primary cursor-pointer hover:text-primary/80 transition-colors">
-            유스쿨
+            티처메이트
           </h1>
         </Link>
         {title && (
