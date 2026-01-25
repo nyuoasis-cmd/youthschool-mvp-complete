@@ -65,6 +65,10 @@ export default function Login() {
     if (params.get("error") === "token_expired") {
       setErrorMessage("인증 링크가 만료되었습니다. 다시 요청해주세요.");
     }
+
+    if (params.get("reason") === "auth_required") {
+      setErrorMessage("로그인이 필요한 서비스입니다.");
+    }
   }, [search, toast]);
 
   const onSubmit = async (data: LoginInput) => {

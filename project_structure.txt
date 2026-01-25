@@ -1,0 +1,107 @@
+./.claude/settings.local.json
+./.env
+./.env.example
+./.gitignore
+./.replit
+./AI_생성_버튼_구현_명세서.md
+./AI_생성_버튼_구현_명세서.md:Zone.Identifier
+./UI 수정/teachermate-css-guide.md
+./UI 수정/teachermate-javascript-guide.md
+./UI 수정/teachermate-mobile-ui-spec.md
+./UI 수정/teachermate-ui-wireframe.md
+./attached_assets/.env_1768473880992.example
+./attached_assets/ADR-YouthSchool-MVP_1768473880993.md
+./attached_assets/DEPENDENCY-MANAGEMENT_1768473880993.md
+./attached_assets/DOCKER-GUIDE_1768473880990.md
+./attached_assets/Dockerfile_1768473880989.dev
+./attached_assets/README_1768473880990.md
+./attached_assets/TESTING-GUIDE_1768473880992.md
+./attached_assets/_1768473880992.gitignore
+./attached_assets/docker-compose_1768473880994.yml
+./attached_assets/image_1768473772792.png
+./attached_assets/image_1768531579239.png
+./attached_assets/init-db_1768473880990.sql
+./attached_assets/pytest_1768473880990.ini
+./attached_assets/requirements-dev_1768473880991.txt
+./attached_assets/requirements-test_1768473880991.txt
+./attached_assets/requirements_1768473880991.txt
+./client/index.html
+./client/public/favicon.png
+./client/src/App.tsx
+./client/src/index.css
+./client/src/main.tsx
+./components.json
+./design_guidelines.md
+./dist/index.cjs
+./dist/public/favicon.png
+./dist/public/index.html
+./docs/crawler-guide.md
+./drizzle.config.ts
+./home-doc-type-cards.png
+./logs/.0429ffd52efa8bfb59d5f6ccfa8709b0d4c24d3c-audit.json
+./logs/.ac8adb7ae22985d22a0d5aedb729d1cdf8c892c9-audit.json
+./logs/README.md
+./logs/combined-2026-01-19.log
+./logs/combined-2026-01-24.log
+./logs/error-2026-01-19.log
+./logs/error-2026-01-24.log
+./logs/sample-error.log
+./package-lock.json
+./package.json
+./package_info.txt
+./postcss.config.js
+./postcss.config.js:Zone.Identifier
+./project-info.txt
+./project_structure.txt
+./replit.md
+./script/build.ts
+./server/admin/routes.ts
+./server/aftercare.ts
+./server/auth/email.ts
+./server/auth/index.ts
+./server/auth/middleware.ts
+./server/auth/password.ts
+./server/auth/routes.ts
+./server/auth/verification.ts
+./server/chat/routes.ts
+./server/config/validateEnv.ts
+./server/crawler.ts
+./server/db.ts
+./server/documentExporter.ts
+./server/github.ts
+./server/hwpParser.ts
+./server/index.ts
+./server/logger.ts
+./server/middleware/errorHandler.ts
+./server/routes.ts
+./server/static.ts
+./server/storage.ts
+./server/vite.ts
+./shared/models/auth.ts
+./shared/models/chat.ts
+./shared/schema.ts
+./tailwind.config.ts
+./template-upload-page.png
+./tsconfig.json
+./vercel.json
+./vite.config.ts
+./교내행사운영계획서/교내_행사_운영계획서_기능명세서.md
+./교내행사운영계획서/교내_행사_운영계획서_기능명세서.md:Zone.Identifier
+./교내행사운영계획서/교내_행사_운영계획서_화면정의서.md
+./교내행사운영계획서/교내_행사_운영계획서_화면정의서.md:Zone.Identifier
+./방과후학교_운영계획서_화면정의서.md
+./방과후학교_운영계획서_화면정의서.md:Zone.Identifier
+./새대화창/새대화_기능명세서.md
+./새대화창/새대화_화면정의서.md
+./초등돌봄교실_AI_생성_기능_구현_명세서.md:Zone.Identifier
+./초등돌봄교실_AI_생성_기능_화면정의서.md:Zone.Identifier
+./초등돌봄교실_운영계획서/초등돌봄교실_AI_생성_기능_구현_명세서.md
+./초등돌봄교실_운영계획서/초등돌봄교실_AI_생성_기능_구현_명세서.md:Zone.Identifier
+./초등돌봄교실_운영계획서/초등돌봄교실_AI_생성_기능_화면정의서.md
+./초등돌봄교실_운영계획서/초등돌봄교실_AI_생성_기능_화면정의서.md:Zone.Identifier
+./학교 예산결산 공개자료/학교_예산결산_공개자료_기능명세서.md
+./학교 예산결산 공개자료/학교_예산결산_공개자료_화면정의서.md
+./학교폭력 예방 교육 계획서/학교폭력_예방_교육_계획서_기능명세서.md
+./학교폭력 예방 교육 계획서/학교폭력_예방_교육_계획서_화면정의서.md
+./학부모총회 안내/학부모총회_안내_기능명세서.md
+./학부모총회 안내/학부모총회_안내_화면정의서.md

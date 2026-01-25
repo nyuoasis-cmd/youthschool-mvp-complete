@@ -156,7 +156,10 @@ export default function Home() {
   const [homeChatId, setHomeChatId] = useState<string | null>(null);
   const [homeMessages, setHomeMessages] = useState<Array<{ role: "user" | "assistant"; content: string; id: string }>>([]);
   const [isSending, setIsSending] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.innerWidth > 768;
+  });
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -193,6 +196,23 @@ export default function Home() {
     if (typeof window === "undefined") return;
     window.sessionStorage.setItem("home.activeSection", activeSection);
   }, [activeSection]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(max-width: 768px)");
+    const handleChange = () => {
+      setSidebarOpen(!media.matches);
+    };
+
+    handleChange();
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", handleChange);
+      return () => media.removeEventListener("change", handleChange);
+    }
+
+    media.addListener(handleChange);
+    return () => media.removeListener(handleChange);
+  }, []);
 
   const showCharCount = chatInput.length >= 9000;
 

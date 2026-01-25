@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, Eye, EyeOff, Mail, Lock, User, Clock } from "lucide-react";
 import { SPECIALTY_OPTIONS } from "@shared/models/auth";
+import { IS_EMAIL_VERIFICATION_ENABLED } from "@/lib/featureFlags";
 
 const step1Schema = z.object({
   email: z.string().email("올바른 이메일 형식이 아닙니다"),
@@ -132,7 +133,13 @@ export default function SignupInstructor() {
         step2: step2Data,
         terms: data,
       });
-      toast({ title: "회원가입 완료", description: "이메일을 확인하여 인증을 완료해주세요" });
+      const description = IS_EMAIL_VERIFICATION_ENABLED
+        ? "이메일을 확인하여 인증을 완료해주세요"
+        : "회원가입이 완료되었습니다. 관리자 승인 후 서비스를 이용하실 수 있습니다.";
+      toast({
+        title: "회원가입 완료",
+        description,
+      });
       setLocation(`/signup/complete?type=instructor&email=${encodeURIComponent(result.email)}`);
     } catch (error) {
       toast({ title: "오류", description: error instanceof Error ? error.message : "회원가입에 실패했습니다", variant: "destructive" });

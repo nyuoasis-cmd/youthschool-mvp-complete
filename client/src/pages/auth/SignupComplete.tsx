@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { CheckCircle, Clock, Mail, Loader2 } from "lucide-react";
+import { IS_EMAIL_VERIFICATION_ENABLED } from "@/lib/featureFlags";
 
 export default function SignupComplete() {
   const search = useSearch();
@@ -16,6 +17,7 @@ export default function SignupComplete() {
 
   const isSchoolAdmin = userType === "school_admin";
   const showApprovalNotice = true;
+  const showEmailVerification = IS_EMAIL_VERIFICATION_ENABLED;
 
   const handleResendEmail = async () => {
     if (!email) return;
@@ -49,11 +51,15 @@ export default function SignupComplete() {
     <AuthLayout>
       <div className="text-center space-y-6">
         <div className="flex justify-center">
-          <div className={`w-20 h-20 rounded-full flex items-center justify-center ${isSchoolAdmin ? "bg-yellow-100" : "bg-green-100"}`}>
-            {isSchoolAdmin ? (
-              <Clock className="h-10 w-10 text-yellow-600" />
-            ) : (
+          <div
+            className={`w-20 h-20 rounded-full flex items-center justify-center ${
+              showEmailVerification && !isSchoolAdmin ? "bg-green-100" : "bg-yellow-100"
+            }`}
+          >
+            {showEmailVerification && !isSchoolAdmin ? (
               <CheckCircle className="h-10 w-10 text-green-600" />
+            ) : (
+              <Clock className="h-10 w-10 text-yellow-600" />
             )}
           </div>
         </div>
@@ -67,23 +73,25 @@ export default function SignupComplete() {
           </p>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-left">
-          <div className="flex items-start gap-4">
-            <Mail className="h-6 w-6 text-blue-600 mt-0.5" />
-            <div>
-              <h3 className="font-semibold text-blue-800">인증 메일이 발송되었습니다</h3>
-              <p className="mt-1 text-sm text-blue-700">
-                <strong>{email}</strong>
-              </p>
-              <p className="mt-2 text-sm text-blue-700">
-                메일함에서 인증 링크를 클릭하여 계정을 활성화해주세요.
-              </p>
-              <p className="mt-2 text-sm text-blue-600">
-                이 링크는 <strong>24시간</strong> 동안 유효합니다.
-              </p>
+        {showEmailVerification && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-left">
+            <div className="flex items-start gap-4">
+              <Mail className="h-6 w-6 text-blue-600 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-blue-800">인증 메일이 발송되었습니다</h3>
+                <p className="mt-1 text-sm text-blue-700">
+                  <strong>{email}</strong>
+                </p>
+                <p className="mt-2 text-sm text-blue-700">
+                  메일함에서 인증 링크를 클릭하여 계정을 활성화해주세요.
+                </p>
+                <p className="mt-2 text-sm text-blue-600">
+                  이 링크는 <strong>24시간</strong> 동안 유효합니다.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {showApprovalNotice && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-left">
@@ -94,7 +102,9 @@ export default function SignupComplete() {
                 <p className="mt-1 text-sm text-yellow-700">
                   {isSchoolAdmin
                     ? "학교 관리자 계정은 시스템 관리자의 승인이 필요합니다."
-                    : "이메일 인증 완료 후 운영자 승인이 진행됩니다."}
+                    : showEmailVerification
+                      ? "이메일 인증 완료 후 운영자 승인이 진행됩니다."
+                      : "운영자 승인이 진행됩니다."}
                 </p>
                 <p className="mt-2 text-sm text-yellow-700">
                   승인 완료 시 등록하신 이메일로 안내 메일이 발송됩니다.
@@ -107,7 +117,7 @@ export default function SignupComplete() {
           </div>
         )}
 
-        {email && (
+        {showEmailVerification && email && (
           <div className="space-y-2">
             <p className="text-sm text-gray-500">
               인증 메일이 오지 않았나요?

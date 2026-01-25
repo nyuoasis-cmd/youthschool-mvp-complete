@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, Eye, EyeOff, Mail, Lock, User, School, MapPin, BookOpen, Briefcase } from "lucide-react";
 import { SUBJECT_OPTIONS } from "@shared/models/auth";
+import { IS_EMAIL_VERIFICATION_ENABLED } from "@/lib/featureFlags";
 
 // Step 1 Schema
 const step1Schema = z.object({
@@ -182,9 +183,12 @@ export default function SignupTeacher() {
         terms: data,
       });
 
+      const description = IS_EMAIL_VERIFICATION_ENABLED
+        ? "이메일을 확인하여 인증을 완료해주세요"
+        : "회원가입이 완료되었습니다. 관리자 승인 후 서비스를 이용하실 수 있습니다.";
       toast({
         title: "회원가입 완료",
-        description: "이메일을 확인하여 인증을 완료해주세요",
+        description,
       });
 
       setLocation(`/signup/complete?type=teacher&email=${encodeURIComponent(result.email)}`);

@@ -23,6 +23,7 @@ import {
 import { sendVerificationEmail, sendPasswordResetEmail } from "./email";
 import { isAuthenticated, requireFullAuth, isSystemAdmin, hasRole } from "./middleware";
 import { USER_TYPES } from "@shared/models/auth";
+import { IS_EMAIL_VERIFICATION_ENABLED } from "../config/featureFlags";
 
 const router = Router();
 
@@ -81,7 +82,7 @@ passport.use(
         }
 
         // Check account status
-        if (!user.emailVerified) {
+        if (IS_EMAIL_VERIFICATION_ENABLED && !user.emailVerified) {
           return done(null, false, { message: "이메일 인증이 완료되지 않았습니다. 인증 메일을 확인해주세요" });
         }
 
@@ -350,7 +351,7 @@ router.post("/register", async (req: Request, res: Response) => {
       name: step1.name,
       phone: step1.phone || "",
       phoneVerified: false,
-      emailVerified: false,
+      emailVerified: IS_EMAIL_VERIFICATION_ENABLED ? false : true,
       status: initialStatus,
       organization: organization || null,
       position: position || null,
@@ -387,22 +388,26 @@ router.post("/register", async (req: Request, res: Response) => {
       });
     }
 
-    // Generate email verification token
-    const token = generateToken();
-    const expiresAt = getEmailVerificationExpiry();
+    if (IS_EMAIL_VERIFICATION_ENABLED) {
+      // Generate email verification token
+      const token = generateToken();
+      const expiresAt = getEmailVerificationExpiry();
 
-    await db.insert(emailVerifications).values({
-      userId: newUser.id,
-      token,
-      expiresAt,
-    });
+      await db.insert(emailVerifications).values({
+        userId: newUser.id,
+        token,
+        expiresAt,
+      });
 
-    // Send verification email
-    await sendVerificationEmail(newUser.email, token, newUser.name);
+      // Send verification email
+      await sendVerificationEmail(newUser.email, token, newUser.name);
+    }
 
     res.status(201).json({
       success: true,
-      message: "회원가입이 완료되었습니다. 이메일을 확인해주세요.",
+      message: IS_EMAIL_VERIFICATION_ENABLED
+        ? "회원가입이 완료되었습니다. 이메일을 확인해주세요."
+        : "회원가입이 완료되었습니다. 관리자 승인 후 서비스를 이용하실 수 있습니다.",
       userId: newUser.id,
       userType: newUser.userType,
       email: maskEmail(newUser.email),
@@ -534,6 +539,12 @@ router.get("/verify-email/:token", async (req: Request, res: Response) => {
  */
 router.post("/resend-verification", async (req: Request, res: Response) => {
   try {
+    if (!IS_EMAIL_VERIFICATION_ENABLED) {
+      return res.json({
+        success: true,
+        message: "현재 이메일 인증이 비활성화되어 있습니다.",
+      });
+    }
     const { email } = req.body;
 
     if (!email) {
@@ -619,7 +630,12 @@ router.post("/login", (req: Request, res: Response, next) => {
           email: user.email,
           name: user.name,
           userType: user.userType,
+          phone: user.phone,
+          phoneVerified: user.phoneVerified,
+          emailVerified: user.emailVerified,
+          status: user.status,
           profileImageUrl: user.profileImageUrl,
+          createdAt: user.createdAt,
         },
       });
     });

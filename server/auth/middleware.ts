@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { USER_STATUS, users, UserType } from "@shared/models/auth";
 import { db } from "../db";
 import { eq } from "drizzle-orm";
+import { IS_EMAIL_VERIFICATION_ENABLED } from "../config/featureFlags";
 
 // Extend Express Request to include user
 declare global {
@@ -56,6 +57,9 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
 export function isEmailVerified(req: Request, res: Response, next: NextFunction) {
   if (!req.user) {
     return res.status(401).json({ error: "로그인이 필요합니다" });
+  }
+  if (!IS_EMAIL_VERIFICATION_ENABLED) {
+    return next();
   }
   if (!req.user.emailVerified) {
     return res.status(403).json({ error: "이메일 인증이 필요합니다" });
