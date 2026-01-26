@@ -19,6 +19,11 @@
             "date": 1769317403612,
             "name": "/home/claude/youthschool/logs/error-2026-01-25.log",
             "hash": "da9c9bc8a072866684c6a08f703f20946fe092162bbab89e76a40db0274cf432"
+        },
+        {
+            "date": 1769426504645,
+            "name": "/home/claude/youthschool/logs/error-2026-01-26.log",
+            "hash": "a8b86b9889e2788120efde5128a69ec3ad31aa3b5a3138e02a0b1e9fc5b55e87"
         }
     ],
     "hashType": "sha256"

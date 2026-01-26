@@ -95,11 +95,8 @@ export type DocumentAttachment = typeof documentAttachments.$inferSelect;
 
 // Form Input Schema for Parent Letter (가정통신문)
 export const parentLetterInputSchema = z.object({
-  title: z.string().min(1, "제목을 입력해주세요"),
-  schoolName: z.string().min(1, "학교명을 입력해주세요"),
-  purpose: z.string().min(1, "목적을 입력해주세요"),
-  mainContent: z.string().min(10, "주요 내용을 10자 이상 입력해주세요"),
-  additionalNotes: z.string().optional(),
+  title: z.string().optional(),
+  mainContent: z.string().optional(),
   deadline: z.string().optional(),
   contactInfo: z.string().optional(),
 });
@@ -108,15 +105,13 @@ export type ParentLetterInput = z.infer<typeof parentLetterInputSchema>;
 
 // Form Input Schema for Education Plan (외부 교육 용역 계획서)
 export const educationPlanInputSchema = z.object({
-  title: z.string().min(1, "제목을 입력해주세요"),
-  schoolName: z.string().min(1, "학교명을 입력해주세요"),
-  programName: z.string().min(1, "프로그램명을 입력해주세요"),
-  targetStudents: z.string().min(1, "대상 학생을 입력해주세요"),
-  duration: z.string().min(1, "교육 기간을 입력해주세요"),
-  objectives: z.string().min(10, "교육 목표를 10자 이상 입력해주세요"),
-  contents: z.string().min(10, "교육 내용을 10자 이상 입력해주세요"),
+  title: z.string().optional(),
+  programName: z.string().optional(),
+  objectives: z.string().optional(),
+  targetStudents: z.string().optional(),
+  duration: z.string().optional(),
+  instructorInfo: z.string().optional(),
   budget: z.string().optional(),
-  expectedOutcomes: z.string().optional(),
 });
 
 export type EducationPlanInput = z.infer<typeof educationPlanInputSchema>;

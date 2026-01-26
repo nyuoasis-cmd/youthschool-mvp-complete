@@ -20,6 +20,7 @@ export default function TemplateForm() {
   const { toast } = useToast();
   const [selectedTemplate, setSelectedTemplate] = useState<UploadedTemplate | null>(null);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const [instructions, setInstructions] = useState("");
   const [generatingStatus, setGeneratingStatus] = useState<string>("");
 
   const templatesQuery = useQuery<UploadedTemplate[]>({
@@ -187,7 +188,7 @@ export default function TemplateForm() {
 
     generateMutation.mutate({
       templateId: selectedTemplate.id,
-      inputs: formValues,
+      inputs: { ...formValues, instructions },
     });
   };
 
@@ -448,6 +449,17 @@ export default function TemplateForm() {
                   </div>
                 ) : (
                   <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="instructions">작성 지시</Label>
+                      <Textarea
+                        id="instructions"
+                        value={instructions}
+                        onChange={(e) => setInstructions(e.target.value)}
+                        placeholder="AI에게 전달할 작성 지시를 입력하세요."
+                        className="min-h-[120px]"
+                        data-testid="input-template-instructions"
+                      />
+                    </div>
                     <div className="space-y-4">
                       {fields.map((field) => (
                         <div key={field.name} className="space-y-2">

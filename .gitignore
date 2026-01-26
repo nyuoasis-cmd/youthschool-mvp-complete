@@ -10,3 +10,4 @@ vite.config.ts.*
 *.log
 logs/*.log
 *.Zone.Identifier
+shared/rag-data/*.json

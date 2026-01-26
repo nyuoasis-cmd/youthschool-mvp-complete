@@ -17,6 +17,8 @@ import multer from "multer";
 import { parseHwpFile, chunkText } from "./hwpParser";
 import { crawlDocumentFromUrl } from "./crawler";
 import { exportToDocx, exportToPdf } from "./documentExporter";
+import { getRagReferenceDocuments } from "./rag";
+import { buildRagPrompt } from "./prompts";
 import {
   AFTERCARE_FIELD_KEYS,
   checkPolicyNoNewNumbers,
@@ -45,6 +47,14 @@ const upload = multer({
     }
   },
 });
+
+const toRagInputs = (context?: Record<string, unknown>) =>
+  Object.fromEntries(
+    Object.entries(context || {}).map(([key, value]) => [
+      key,
+      typeof value === "string" ? value : JSON.stringify(value),
+    ]),
+  );
 
 const attachmentsRoot = path.resolve(process.cwd(), "uploads", "attachments");
 fs.mkdirSync(attachmentsRoot, { recursive: true });
@@ -510,10 +520,17 @@ ${crawlerSections.join("\n\n")}
         }
       }
 
-      // Inject RAG context into prompt
-      if (ragContext) {
-        prompt = ragContext + prompt;
-      }
+      const ragDocuments = await getRagReferenceDocuments({
+        documentType,
+        inputs,
+        limit: 3,
+      });
+
+      prompt = buildRagPrompt({
+        basePrompt: prompt,
+        ragDocuments,
+        extraContext: ragContext,
+      });
 
       // Create initial document record
       const title = inputs.title || `${documentType} - ${new Date().toLocaleDateString('ko-KR')}`;
@@ -717,6 +734,16 @@ ${contextDescription || "프로그램명, 교육 목표, 교육 내용 등의 �
         return res.status(400).json({ error: `지원하지 않는 필드입니다: ${fieldName}` });
       }
 
+      const ragDocuments = await getRagReferenceDocuments({
+        documentType,
+        inputs: (context as Record<string, string>) || {},
+        limit: 3,
+      });
+      prompt = buildRagPrompt({
+        basePrompt: prompt,
+        ragDocuments,
+      });
+
       // Generate content using Anthropic or OpenAI (fallback)
       const hasAnthropicKey = !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
       const hasOpenAiKey = !!process.env.OPENAI_API_KEY;
@@ -787,15 +814,8 @@ ${contextDescription || "프로그램명, 교육 목표, 교육 내용 등의 �
 
       const basicInfo = context?.basicInfo || {};
       const schoolName = basicInfo?.schoolName || "학교";
-      const schoolLevel = basicInfo?.schoolLevel;
-      const planType = basicInfo?.planType;
-
-      if (!basicInfo?.schoolName || !schoolLevel || !planType) {
-        return res.status(400).json({
-          success: false,
-          error: "기본 정보를 먼저 입력해 주세요.",
-        });
-      }
+      const schoolLevel = basicInfo?.schoolLevel || "elementary";
+      const planType = basicInfo?.planType || "annual";
 
       const levelLabel =
         schoolLevel === "elementary" ? "초등학교" : schoolLevel === "middle" ? "중학교" : "고등학교";
@@ -822,6 +842,21 @@ ${contextDescription || "프로그램명, 교육 목표, 교육 내용 등의 �
       ].join("\n");
 
       const promptMap: Record<string, string> = {
+        educationContent: `${baseContext}
+
+다음 정보를 바탕으로 안전교육 내용을 작성해 주세요.
+
+[입력 정보]
+- 교육 영역: ${context?.areas?.join(", ") || "미정"}
+- 대상 학년: ${context?.targetGrades || "미정"}
+- 연간 시수: ${context?.annualHours || "미정"}
+
+[작성 지침]
+- 영역별 핵심 교육 내용을 포함
+- 학년별 수준을 고려한 표현
+- 4~6문장 또는 불릿 형태
+
+${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해 작성하세요.` : "교육 내용만 출력하세요."}`,
         goals: `${baseContext}
 
 다음 정보를 바탕으로 안전교육 목표를 작성해 주세요.
@@ -990,13 +1025,27 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
 ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해 작성하세요.` : "주요 교육 내용만 출력하세요."}`;
       }
 
-      const prompt = promptMap[fieldName];
+      let prompt = promptMap[fieldName];
       if (!prompt) {
         return res.status(400).json({
           success: false,
           error: `지원하지 않는 필드입니다: ${fieldName}`,
         });
       }
+
+      const ragDocuments1 = await getRagReferenceDocuments({
+        documentType: "교내 행사 운영계획서",
+        inputs: toRagInputs(context),
+        limit: 3,
+      });
+      prompt = buildRagPrompt({ basePrompt: prompt, ragDocuments: ragDocuments1 });
+
+      const ragDocuments2 = await getRagReferenceDocuments({
+        documentType: "학교 안전교육 계획서",
+        inputs: toRagInputs(context),
+        limit: 3,
+      });
+      prompt = buildRagPrompt({ basePrompt: prompt, ragDocuments: ragDocuments2 });
 
       const hasAnthropicKey = !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
       const hasOpenAiKey = !!process.env.OPENAI_API_KEY;
@@ -1067,20 +1116,15 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
 
       const basicInfo = context?.basicInfo || {};
       const schoolName = basicInfo?.schoolName || "학교";
-      const eventName = basicInfo?.eventName;
-      const eventType = basicInfo?.eventType;
+      const eventName = context?.eventName || basicInfo?.eventName || "교내 행사";
+      const eventType = context?.eventType || basicInfo?.eventType || "행사";
       const participants = (basicInfo?.participants || []).join(", ");
       const expectedCount = basicInfo?.expectedCount;
-      const eventDateTime = `${basicInfo?.startDateTime || ""} ~ ${basicInfo?.endDateTime || ""}`.trim();
-      const location = basicInfo?.location;
+      const eventDateTime =
+        context?.eventDateTime ||
+        `${basicInfo?.startDateTime || ""} ~ ${basicInfo?.endDateTime || ""}`.trim();
+      const location = context?.eventLocation || basicInfo?.location;
       const currentValue = context?.currentValue || "";
-
-      if (!basicInfo?.schoolName || !eventName || !eventType) {
-        return res.status(400).json({
-          success: false,
-          error: "기본 정보를 먼저 입력해 주세요.",
-        });
-      }
 
       const baseContext = [
         `학교명: ${schoolName}`,
@@ -1095,6 +1139,25 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
         .join("\n");
 
       const promptMap: Record<string, string> = {
+        eventProgram: `${baseContext}
+
+다음 정보를 바탕으로 행사 프로그램을 작성해 주세요.
+
+[작성 지침]
+- 4~6개 내외의 프로그램 항목
+- 행사 유형에 맞는 활동 구성
+- 간결한 문장 또는 불릿 형식
+
+${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해 작성하세요.` : "프로그램 내용만 출력하세요."}`,
+        eventSafetyPlan: `${baseContext}
+
+다음 정보를 바탕으로 행사 안전 계획을 작성해 주세요.
+
+[작성 지침]
+- 인원 통제, 응급 대응, 안전 교육 포함
+- 3~5문장으로 작성
+
+${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해 작성하세요.` : "안전 계획만 출력하세요."}`,
         purpose: `${baseContext}
 
 다음 정보를 바탕으로 행사 목적을 작성해 주세요.
@@ -1234,13 +1297,20 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
 ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해 작성하세요.` : "환류 계획 내용만 출력하세요."}`,
       };
 
-      const prompt = promptMap[fieldName];
+      let prompt = promptMap[fieldName];
       if (!prompt) {
         return res.status(400).json({
           success: false,
           error: `지원하지 않는 필드입니다: ${fieldName}`,
         });
       }
+
+      const ragDocuments = await getRagReferenceDocuments({
+        documentType: "교내 행사 운영계획서",
+        inputs: toRagInputs(context),
+        limit: 3,
+      });
+      prompt = buildRagPrompt({ basePrompt: prompt, ragDocuments });
 
       const hasAnthropicKey = !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
       const hasOpenAiKey = !!process.env.OPENAI_API_KEY;
@@ -1475,13 +1545,20 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
 ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해 작성하세요.` : "마무리 인사말만 출력하세요."}`,
       };
 
-      const prompt = promptMap[fieldName];
+      let prompt = promptMap[fieldName];
       if (!prompt) {
         return res.status(400).json({
           success: false,
           error: `지원하지 않는 필드입니다: ${fieldName}`,
         });
       }
+
+      const ragDocuments = await getRagReferenceDocuments({
+        documentType: "학교폭력 예방 교육 계획서",
+        inputs: toRagInputs(context),
+        limit: 3,
+      });
+      prompt = buildRagPrompt({ basePrompt: prompt, ragDocuments });
 
       const hasAnthropicKey = !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
       const hasOpenAiKey = !!process.env.OPENAI_API_KEY;
@@ -1743,13 +1820,20 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
         promptMap[fieldName] = prompt;
       }
 
-      const prompt = promptMap[fieldName];
+      let prompt = promptMap[fieldName];
       if (!prompt) {
         return res.status(400).json({
           success: false,
           error: `지원하지 않는 필드입니다: ${fieldName}`,
         });
       }
+
+      const ragDocuments = await getRagReferenceDocuments({
+        documentType: "예산/결산 공개 자료",
+        inputs: toRagInputs(context),
+        limit: 3,
+      });
+      prompt = buildRagPrompt({ basePrompt: prompt, ragDocuments });
 
       const hasAnthropicKey = !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
       const hasOpenAiKey = !!process.env.OPENAI_API_KEY;
@@ -1820,19 +1904,12 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
 
       const basicInfo = context?.basicInfo || {};
       const schoolName = basicInfo?.schoolName || "학교";
-      const schoolLevel = basicInfo?.schoolLevel;
-      const planType = basicInfo?.planType;
+      const schoolLevel = basicInfo?.schoolLevel || "elementary";
+      const planType = basicInfo?.planType || "annual";
       const studentCount = basicInfo?.studentCount;
       const classCount = basicInfo?.classCount;
       const teacherCount = basicInfo?.teacherCount;
       const currentValue = context?.currentValue || "";
-
-      if (!basicInfo?.schoolName || !schoolLevel || !planType) {
-        return res.status(400).json({
-          success: false,
-          error: "기본 정보를 먼저 입력해 주세요.",
-        });
-      }
 
       const levelLabel =
         schoolLevel === "elementary" ? "초등학교" : schoolLevel === "middle" ? "중학교" : "고등학교";
@@ -1851,6 +1928,28 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
         .join("\n");
 
       const promptMap: Record<string, string> = {
+        educationContent: `${baseContext}
+
+다음 정보를 바탕으로 학교폭력 예방 교육 내용을 작성해 주세요.
+
+[입력 정보]
+- 대상: ${context?.target || "미정"}
+- 교육 일시: ${context?.educationDateTime || "미정"}
+
+[작성 지침]
+- 핵심 메시지 3~5문장
+- 예방, 신고 절차, 상호 존중 포함
+
+${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해 작성하세요.` : "교육 내용만 출력하세요."}`,
+        legalBasis: `${baseContext}
+
+다음 정보를 바탕으로 학교폭력 예방 교육의 법적 근거를 작성해 주세요.
+
+[작성 지침]
+- 학교폭력예방 및 대책에 관한 법률 제15조 언급
+- 1~2문장으로 간결하게 작성
+
+${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해 작성하세요.` : "법적 근거만 출력하세요."}`,
         schoolCharacteristics: `${baseContext}
 
 다음 정보를 바탕으로 학교 특성 및 환경을 작성해 주세요.
@@ -2403,6 +2502,18 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
 
       // Build prompt based on field name
       const afterschoolPrompts: Record<string, string> = {
+        programList: `${schoolName} 방과후학교 운영계획서에 포함할 프로그램 목록을 작성해주세요.
+
+입력 정보:
+- 운영 기간: ${context?.period || "미정"}
+- 수강료 정보: ${context?.tuition || "미정"}
+
+요구사항:
+- 4~6개 내외의 프로그램 항목 제시
+- 항목마다 핵심 활동을 한 줄로 설명
+- 간결하고 공문서 톤 유지
+
+형식: 불릿 목록`,
         // Step 2: 운영 목표 및 방침 - 추가 목적
         additionalPurpose: `${schoolName}의 ${year}학년도 방과후학교 운영 목적을 작성해주세요.
 
@@ -2509,6 +2620,30 @@ ${context?.policies?.join(", ") || "공개 모집 원칙, 안전 관리 강화"}
       };
 
       const carePrompts: Record<string, string> = {
+        careObjectives: `초등돌봄교실 운영 목표를 작성해주세요.
+
+입력 정보:
+- 운영 시간: ${context?.operatingTime || "미정"}
+- 대상 학년: ${context?.targetGrades || "미정"}
+
+요구사항:
+- 3~4문장으로 작성
+- 돌봄 목표와 기대 효과 포함
+- 학부모 안심 요소 강조
+
+형식: 일반 문장`,
+        careProgramContent: `초등돌봄교실 프로그램 내용을 작성해주세요.
+
+입력 정보:
+- 운영 시간: ${context?.operatingTime || "미정"}
+- 대상 학년: ${context?.targetGrades || "미정"}
+
+요구사항:
+- 주요 활동 3~5개를 설명
+- 안전·정서 지원 요소 포함
+- 간결한 문장 구성
+
+형식: 일반 문장 또는 불릿`,
         additionalGoals: `${schoolName}의 ${year}학년도 ${semester} 초등돌봄교실 운영 목표를 작성해주세요.
 
 운영 정보:
@@ -2628,13 +2763,21 @@ ${context?.policies?.join(", ") || "공개 모집 원칙, 안전 관리 강화"}
       };
 
       const selectedPrompts = documentType === "care" ? carePrompts : afterschoolPrompts;
-      const prompt = selectedPrompts[fieldName];
+      let prompt = selectedPrompts[fieldName];
       if (!prompt) {
         return res.status(400).json({
           success: false,
           error: `지원하지 않는 필드입니다: ${fieldName}`
         });
       }
+
+      const ragDocuments = await getRagReferenceDocuments({
+        documentType:
+          documentType === "care" ? "초등돌봄교실 운영계획서" : "방과후학교 운영계획서",
+        inputs: toRagInputs(context),
+        limit: 3,
+      });
+      prompt = buildRagPrompt({ basePrompt: prompt, ragDocuments });
 
       const client = getOpenAiClient();
       if (!client) {
@@ -2730,6 +2873,32 @@ ${contextText}
 
 주요 활동 내용만 출력하세요.`;
           break;
+        case "schedule":
+          prompt = `다음 정보를 바탕으로 현장체험학습 "세부 일정"을 작성해 주세요.
+
+[입력 정보]
+${contextText}
+
+[작성 지침]
+1. 시간대별 흐름이 보이도록 작성
+2. 이동, 체험, 정리 시간을 포함
+3. 간결한 불릿 형태 권장
+
+세부 일정만 출력하세요.`;
+          break;
+        case "safetyPlan":
+          prompt = `다음 정보를 바탕으로 현장체험학습 "안전 관리 계획"을 작성해 주세요.
+
+[입력 정보]
+${contextText}
+
+[작성 지침]
+1. 인솔자 역할 및 비상 연락체계 포함
+2. 사전 안전교육 및 현장 안전수칙 포함
+3. 4~6문장으로 작성
+
+안전 관리 계획만 출력하세요.`;
+          break;
         case "priorEducation":
           prompt = `다음 정보를 바탕으로 "사전 교육 내용"을 2~4문장으로 작성해 주세요.
 
@@ -2781,6 +2950,13 @@ ${contextText}
         default:
           return res.status(400).json({ success: false, error: `지원하지 않는 필드입니다: ${fieldName}` });
       }
+
+      const ragDocuments = await getRagReferenceDocuments({
+        documentType: "현장체험학습 운영계획서",
+        inputs: toRagInputs(context),
+        limit: 3,
+      });
+      prompt = buildRagPrompt({ basePrompt: prompt, ragDocuments });
 
       const hasAnthropicKey = !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
       const hasOpenAiKey = !!process.env.OPENAI_API_KEY;

@@ -1,6 +1,6 @@
 # YouthSchool 프로젝트 현황 보고
 
-> 📅 생성 시간: 2026-01-25 13:38:31
+> 📅 생성 시간: 2026-01-25 17:08:06
 > 📍 프로젝트 경로: /home/claude/youthschool
 
 ---
@@ -73,7 +73,7 @@ not-found.tsx
 ./server/documentExporter.ts (6.4K)
 ./server/github.ts (2.1K)
 ./server/hwpParser.ts (6.4K)
-./server/index.ts (4.3K)
+./server/index.ts (3.5K)
 ./server/logger.ts (3.6K)
 ./server/routes.ts (126K)
 ./server/static.ts (559)
@@ -180,27 +180,27 @@ PORT=5000
 
 ## 📊 5. 최근 변경 사항 (Git)
 
+027e1ea 모바일 UI 개선 및 관리자 승인 기반 회원가입 시스템 구현
 ddb97a6 UI 수정 가이드 및 새대화창 명세서 추가
 3326ada A_1.004
 5a00c66 A 1.003
 7a18361 A 1.002
-4f642b9 배포 후 1차 수정
 
 ---
 
 ## 📝 6. TODO 및 현재 작업
 
 ### 최근 수정된 파일 (24시간 이내)
-./CURRENT_CONTEXT.md (Jan 25 13:38)
-./server/logger.ts (Jan 25 13:32)
-./client/src/components/layout/AppLayout.tsx (Jan 25 13:12)
-./server/auth/routes.ts (Jan 25 13:09)
-./server/auth/middleware.ts (Jan 25 13:07)
-./client/src/App.tsx (Jan 25 13:07)
-./client/src/pages/auth/PendingApproval.tsx (Jan 25 13:07)
-./client/src/pages/auth/Login.tsx (Jan 25 13:07)
-./client/src/pages/auth/SignupSchoolAdmin.tsx (Jan 25 13:06)
-./client/src/pages/auth/SignupInstructor.tsx (Jan 25 13:06)
+./CURRENT_CONTEXT.md (Jan 25 17:08)
+./server/auth/routes.ts (Jan 25 16:46)
+./client/src/pages/auth/SignupInstructor.tsx (Jan 25 16:46)
+./client/src/pages/auth/SignupTeacher.tsx (Jan 25 16:46)
+./client/src/pages/admin/UserApproval.tsx (Jan 25 16:45)
+./client/src/components/layout/AppLayout.tsx (Jan 25 16:45)
+./client/src/App.tsx (Jan 25 16:45)
+./client/src/pages/Home.tsx (Jan 25 16:44)
+./client/src/pages/auth/Login.tsx (Jan 25 16:44)
+./client/src/pages/auth/SignupComplete.tsx (Jan 25 16:44)
 
 ---
 

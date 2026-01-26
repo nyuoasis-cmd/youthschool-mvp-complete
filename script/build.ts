@@ -1,6 +1,7 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, readFile } from "fs/promises";
+import { rm, readFile, mkdir, writeFile } from "fs/promises";
+import path from "path";
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -32,8 +33,46 @@ const allowlist = [
   "zod-validation-error",
 ];
 
+const ragConfig = {
+  owner: "nyuoasis-cmd",
+  repo: "school-newsletter-rag",
+  ref: "main",
+  metadataPath: "metadata/documents.json",
+  categoriesPath: "config/categories.json",
+};
+
+const ragDataDir = path.resolve("shared", "rag-data");
+const ragMetadataPath = path.join(ragDataDir, "documents.json");
+const ragCategoriesPath = path.join(ragDataDir, "categories.json");
+
+const buildRawUrl = (relativePath: string) =>
+  `https://raw.githubusercontent.com/${ragConfig.owner}/${ragConfig.repo}/${ragConfig.ref}/${relativePath.replace(/^\/+/, "")}`;
+
+async function downloadFile(url: string, outputPath: string) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+  }
+  const body = await response.text();
+  await writeFile(outputPath, body, "utf-8");
+}
+
+async function syncRagData() {
+  if (process.env.RAG_SKIP_DOWNLOAD === "true") {
+    console.log("Skipping RAG metadata download (RAG_SKIP_DOWNLOAD=true).");
+    return;
+  }
+
+  await mkdir(ragDataDir, { recursive: true });
+  await downloadFile(buildRawUrl(ragConfig.metadataPath), ragMetadataPath);
+  await downloadFile(buildRawUrl(ragConfig.categoriesPath), ragCategoriesPath);
+}
+
 async function buildAll() {
   await rm("dist", { recursive: true, force: true });
+
+  console.log("syncing RAG metadata...");
+  await syncRagData();
 
   console.log("building client...");
   await viteBuild();
