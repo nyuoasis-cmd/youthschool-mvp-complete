@@ -438,6 +438,37 @@ export class DatabaseStorage implements IStorage {
 가정통신문을 작성해주세요:`,
       },
       {
+        name: "급식안내문",
+        description: "월별 학교 급식안내문 기본 양식",
+        category: "communication",
+        documentType: "급식안내문",
+        isDefault: true,
+        promptTemplate: `당신은 한국 학교의 급식안내문 작성 전문가입니다. 아래 정보를 바탕으로 공식적인 가정통신문 형식의 급식안내문을 작성해주세요.
+
+[입력 정보]
+- 제목: {title}
+- 학년도: {academicYear}
+- 월: {month}
+- 학교명: {schoolName}
+- 인사말: {greeting}
+- 급식 기간: {mealPeriod}
+- 급식비 납부기간: {paymentPeriod}
+- 납부내역: {paymentDetails}
+- 납부방법: {paymentMethod}
+- 추가 안내 항목: {notices}
+- 발행 날짜: {issueDate}
+- 학교장 서명: {principalSignature}
+
+[작성 지침]
+1. 학부모님께 드리는 공문서 형식으로 격식 있게 작성합니다.
+2. "1. 급식 기간", "2. 급식비 납부기간", "3. 납부내역", "4. 납부방법" 순서로 정리합니다.
+3. 납부내역은 표 형태로 보일 수 있도록 항목별로 구분하여 작성합니다.
+4. 추가 안내 항목은 '※' 형태로 나열합니다.
+5. 마지막에 발행 날짜와 학교장 서명을 포함합니다.
+
+급식안내문을 작성해주세요:`,
+      },
+      {
         name: "학부모총회 안내",
         description: "학부모총회 안내문 기본 양식",
         category: "communication",

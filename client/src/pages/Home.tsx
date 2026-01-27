@@ -22,6 +22,16 @@ const documentTypes = [
     levels: ["초등학교", "중학교", "고등학교"],
   },
   {
+    id: "meal-notice",
+    title: "급식안내문",
+    description: "월별 학교급식 안내문을 AI로 빠르게 작성합니다.",
+    icon: FileText,
+    href: "/create/meal-notice",
+    examples: ["급식 기간 안내", "급식비 납부 안내", "추가 안내사항"],
+    category: "행정업무",
+    levels: ["초등학교", "중학교", "고등학교"],
+  },
+  {
     id: "parent-meeting",
     title: "학부모총회 안내",
     description: "학기 초 학부모총회 안내문을 전문적으로 작성합니다.",

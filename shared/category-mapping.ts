@@ -1,5 +1,6 @@
 export type TeacherMateDocumentType =
   | "가정통신문"
+  | "급식안내문"
   | "학부모총회 안내"
   | "예산/결산 공개 자료"
   | "외부 교육 용역 계획서"
@@ -23,6 +24,7 @@ export const DOCUMENT_TYPE_TO_RAG_CATEGORY_IDS: Record<
     "meal-notice",
     "survey-notice",
   ],
+  "급식안내문": ["meal-notice", "home-letter", "health-safety"],
   "학부모총회 안내": ["parents-meeting"],
   "예산/결산 공개 자료": ["budget-request", "fee-notice"],
   "외부 교육 용역 계획서": [

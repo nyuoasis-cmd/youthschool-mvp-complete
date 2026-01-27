@@ -10,6 +10,7 @@ export * from "./models/auth";
 // Document Types
 export const DOCUMENT_TYPES = {
   PARENT_LETTER: "가정통신문",
+  MEAL_NOTICE: "급식안내문",
   PARENT_MEETING: "학부모총회 안내",
   BUDGET_DISCLOSURE: "예산/결산 공개 자료",
   EDUCATION_PLAN: "외부 교육 용역 계획서",
@@ -258,6 +259,7 @@ export type AftercareReportInputs = z.infer<typeof aftercareReportInputsSchema>;
 export const generateDocumentRequestSchema = z.object({
   documentType: z.enum([
     "가정통신문",
+    "급식안내문",
     "학부모총회 안내",
     "예산/결산 공개 자료",
     "외부 교육 용역 계획서",

@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>가정통신문 작성 - UI 목업</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f7;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: white;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 16px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .back-btn {
+      width: 40px;
+      height: 40px;
+      border: none;
+      background: #f5f5f7;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .header-title h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    .header-title p {
+      font-size: 14px;
+      color: #666;
+      margin-top: 2px;
+    }
+
+    /* Main Layout */
+    .main-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 24px;
+    }
+
+    /* Sidebar Steps */
+    .sidebar {
+      position: sticky;
+      top: 100px;
+      height: fit-content;
+    }
+
+    .step-list {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .step-item:hover {
+      background: #f5f5f7;
+    }
+
+    .step-item.active {
+      background: #e8f4ff;
+    }
+
+    .step-item.completed {
+      background: #f0fdf4;
+    }
+
+    .step-number {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #e5e5e5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: #666;
+    }
+
+    .step-item.active .step-number {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .step-item.completed .step-number {
+      background: #22c55e;
+      color: white;
+    }
+
+    .step-label {
+      font-size: 14px;
+      color: #333;
+    }
+
+    /* Form Card */
+    .form-card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .form-header {
+      padding: 24px;
+      border-bottom: 1px solid #e5e5e5;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .form-header h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .form-header p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .form-body {
+      padding: 32px;
+    }
+
+    /* Form Groups */
+    .form-section {
+      margin-bottom: 32px;
+    }
+
+    .form-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title::before {
+      content: '';
+      width: 4px;
+      height: 20px;
+      background: #3b82f6;
+      border-radius: 2px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .form-row.single {
+      grid-template-columns: 1fr;
+    }
+
+    .form-row.triple {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .form-label .required {
+      color: #ef4444;
+    }
+
+    .form-input {
+      padding: 12px 16px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-input::placeholder {
+      color: #9ca3af;
+    }
+
+    textarea.form-input {
+      resize: vertical;
+      min-height: 120px;
+    }
+
+    .form-hint {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    /* AI Button */
+    .ai-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .ai-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Checkbox Group */
+    .checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: #f5f5f7;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .checkbox-item:hover {
+      background: #e8f4ff;
+    }
+
+    .checkbox-item.selected {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .checkbox-item input {
+      display: none;
+    }
+
+    /* Radio Group */
+    .radio-group {
+      display: flex;
+      gap: 16px;
+    }
+
+    .radio-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .radio-item input[type="radio"] {
+      width: 18px;
+      height: 18px;
+      accent-color: #3b82f6;
+    }
+
+    /* Upload Zone */
+    .upload-zone {
+      border: 2px dashed #d1d5db;
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .upload-zone:hover {
+      border-color: #3b82f6;
+      background: #f8fafc;
+    }
+
+    .upload-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 12px;
+      background: #e8f4ff;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .upload-text {
+      font-size: 14px;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .upload-hint {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    /* Footer Actions */
+    .form-footer {
+      padding: 24px 32px;
+      border-top: 1px solid #e5e5e5;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #fafafa;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-secondary {
+      background: white;
+      border: 1px solid #d1d5db;
+      color: #333;
+    }
+
+    .btn-secondary:hover {
+      background: #f5f5f7;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-lg {
+      padding: 14px 32px;
+      font-size: 16px;
+    }
+
+    .footer-right {
+      display: flex;
+      gap: 12px;
+    }
+
+    /* Variable Tags Preview */
+    .variable-preview {
+      background: #fefce8;
+      border: 1px solid #fde047;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 24px;
+    }
+
+    .variable-preview h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #854d0e;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .variable-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .variable-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      background: white;
+      border: 1px solid #fde047;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #854d0e;
+    }
+
+    .variable-tag.filled {
+      background: #22c55e;
+      border-color: #22c55e;
+      color: white;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .main-container {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+      }
+
+      .step-list {
+        display: flex;
+        overflow-x: auto;
+        gap: 8px;
+        padding: 12px;
+      }
+
+      .step-item {
+        flex-shrink: 0;
+        padding: 8px 12px;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      .form-row.triple {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <button class="back-btn">←</button>
+      <div class="header-title">
+        <h1>가정통신문 작성</h1>
+        <p>필요한 정보를 입력하면 AI가 문서를 생성합니다</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="step-list">
+        <div class="step-item completed">
+          <div class="step-number">✓</div>
+          <span class="step-label">기본 정보</span>
+        </div>
+        <div class="step-item active">
+          <div class="step-number">2</div>
+          <span class="step-label">일정/장소</span>
+        </div>
+        <div class="step-item">
+          <div class="step-number">3</div>
+          <span class="step-label">대상/비용</span>
+        </div>
+        <div class="step-item">
+          <div class="step-number">4</div>
+          <span class="step-label">내용 작성</span>
+        </div>
+        <div class="step-item">
+          <div class="step-number">5</div>
+          <span class="step-label">행동 요청</span>
+        </div>
+        <div class="step-item">
+          <div class="step-number">6</div>
+          <span class="step-label">미리보기</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Form Card -->
+    <div class="form-card">
+      <div class="form-header">
+        <h2>STEP 2. 일정/장소 정보</h2>
+        <p>행사 또는 안내 사항의 일정과 장소를 입력하세요</p>
+      </div>
+
+      <div class="form-body">
+        <!-- 일정 정보 -->
+        <div class="form-section">
+          <h3 class="section-title">일정 정보</h3>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">
+                행사/일정 날짜 <span class="required">*</span>
+              </label>
+              <input type="date" class="form-input" value="2026-03-15">
+              <span class="form-hint">문서에 표시될 주요 일정 날짜</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">
+                시간
+              </label>
+              <input type="text" class="form-input" placeholder="예: 오전 10:00 ~ 12:00">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">
+                신청/접수 기간
+              </label>
+              <input type="text" class="form-input" placeholder="예: 2026.3.1.(월) ~ 3.10.(수)">
+            </div>
+            <div class="form-group">
+              <label class="form-label">
+                마감일
+              </label>
+              <input type="date" class="form-input">
+              <span class="form-hint">회신 또는 신청 마감일</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 장소 정보 -->
+        <div class="form-section">
+          <h3 class="section-title">장소 정보</h3>
+
+          <div class="form-row single">
+            <div class="form-group">
+              <label class="form-label">
+                장소/위치
+              </label>
+              <input type="text" class="form-input" placeholder="예: 본교 체육관, 시청각실, 교실 등">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">
+                상세 주소
+              </label>
+              <input type="text" class="form-input" placeholder="예: 서울특별시 강남구 테헤란로 123">
+            </div>
+            <div class="form-group">
+              <label class="form-label">
+                오시는 방법
+              </label>
+              <input type="text" class="form-input" placeholder="예: 정문 이용, 주차 가능">
+            </div>
+          </div>
+        </div>
+
+        <!-- 추출된 변수 미리보기 -->
+        <div class="variable-preview">
+          <h4>💡 이 문서에서 사용될 변수</h4>
+          <div class="variable-tags">
+            <span class="variable-tag filled">학교명</span>
+            <span class="variable-tag filled">발행일</span>
+            <span class="variable-tag filled">행사날짜</span>
+            <span class="variable-tag">시간</span>
+            <span class="variable-tag">장소</span>
+            <span class="variable-tag">마감일</span>
+            <span class="variable-tag">대상학년</span>
+            <span class="variable-tag">담당부서</span>
+            <span class="variable-tag">연락처</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-footer">
+        <button class="btn btn-secondary">
+          ← 이전 단계
+        </button>
+        <div class="footer-right">
+          <button class="btn btn-secondary">
+            임시저장
+          </button>
+          <button class="btn btn-primary">
+            다음 단계 →
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 추가 페이지: STEP 1 기본정보 (별도 섹션으로 포함) -->
+  <section style="max-width: 1200px; margin: 40px auto; padding: 0 24px;">
+    <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 24px; color: #1a1a1a;">
+      📋 전체 입력 필드 구조 (20개 핵심 변수 기반)
+    </h2>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+      <!-- STEP 1 -->
+      <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="font-size: 16px; font-weight: 600; color: #3b82f6; margin-bottom: 16px;">
+          STEP 1. 기본 정보 (문서정보 + 학교정보)
+        </h3>
+        <ul style="list-style: none; font-size: 14px; color: #333;">
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">📅 문서발행년도</li>
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">📅 문서발행월</li>
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">📅 문서발행일</li>
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">🏫 학교명 *</li>
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">📍 학교주소</li>
+          <li style="padding: 8px 0;">📞 학교연락처</li>
+        </ul>
+      </div>
+
+      <!-- STEP 2 -->
+      <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="font-size: 16px; font-weight: 600; color: #3b82f6; margin-bottom: 16px;">
+          STEP 2. 일정/장소 (일정관련)
+        </h3>
+        <ul style="list-style: none; font-size: 14px; color: #333;">
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">📅 행사/일정 날짜 *</li>
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">⏰ 시간</li>
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">📆 신청기간</li>
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">⏱️ 마감일</li>
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">📍 장소</li>
+          <li style="padding: 8px 0;">🗺️ 상세주소</li>
+        </ul>
+      </div>
+
+      <!-- STEP 3 -->
+      <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="font-size: 16px; font-weight: 600; color: #3b82f6; margin-bottom: 16px;">
+          STEP 3. 대상/비용 (대상정보 + 비용관련)
+        </h3>
+        <ul style="list-style: none; font-size: 14px; color: #333;">
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">🎓 학년/학급 *</li>
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">👥 대상인원</li>
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">💰 납입항목</li>
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">💵 납입금액</li>
+          <li style="padding: 8px 0;">📆 납입기간</li>
+        </ul>
+      </div>
+
+      <!-- STEP 4 -->
+      <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="font-size: 16px; font-weight: 600; color: #3b82f6; margin-bottom: 16px;">
+          STEP 4. 내용 작성 (활동관련 + 학습정보)
+        </h3>
+        <ul style="list-style: none; font-size: 14px; color: #333;">
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">📝 제목 *</li>
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">🎯 행사/프로그램명</li>
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">📖 선택과목/영역</li>
+          <li style="padding: 8px 0;">📄 주요 내용 (AI 자동생성)</li>
+        </ul>
+      </div>
+
+      <!-- STEP 5 -->
+      <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="font-size: 16px; font-weight: 600; color: #3b82f6; margin-bottom: 16px;">
+          STEP 5. 행동 요청 (조직정보 + 연락처)
+        </h3>
+        <ul style="list-style: none; font-size: 14px; color: #333;">
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">✅ 회신/제출 요청</li>
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">🏢 담당부서</li>
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">👤 담당자명</li>
+          <li style="padding: 8px 0;">☎️ 문의 연락처</li>
+        </ul>
+      </div>
+
+      <!-- STEP 6 -->
+      <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 style="font-size: 16px; font-weight: 600; color: #3b82f6; margin-bottom: 16px;">
+          STEP 6. 미리보기 & 생성
+        </h3>
+        <ul style="list-style: none; font-size: 14px; color: #333;">
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">👁️ 문서 미리보기</li>
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">✏️ 내용 수정</li>
+          <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">📎 첨부파일 추가</li>
+          <li style="padding: 8px 0;">🚀 AI로 문서 생성</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 변수 목록 테이블 -->
+  <section style="max-width: 1200px; margin: 40px auto; padding: 0 24px 60px;">
+    <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 24px; color: #1a1a1a;">
+      📊 추출된 변수 목록 (20개 핵심 변수)
+    </h2>
+
+    <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        <thead>
+          <tr style="background: #f5f5f7;">
+            <th style="padding: 16px; text-align: left; border-bottom: 2px solid #e5e5e5;">변수명</th>
+            <th style="padding: 16px; text-align: left; border-bottom: 2px solid #e5e5e5;">설명</th>
+            <th style="padding: 16px; text-align: left; border-bottom: 2px solid #e5e5e5;">예시</th>
+            <th style="padding: 16px; text-align: left; border-bottom: 2px solid #e5e5e5;">카테고리</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">문서발행년도</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">문서가 발행된 연도</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">2025, 2026</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #e8f4ff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">문서정보</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">문서발행월</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">문서가 발행된 월</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">12월, 11월</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #e8f4ff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">문서정보</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">문서발행일</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">구체적인 발행 날짜</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">2025년 12월 30일(화)</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #e8f4ff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">문서정보</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">학교명</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">발행 학교 이름</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">충북과학고등학교</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #fef3c7; padding: 2px 8px; border-radius: 4px; font-size: 12px;">학교정보</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">학교주소</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">학교 위치 정보</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">청주시 상당구 가덕면...</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #fef3c7; padding: 2px 8px; border-radius: 4px; font-size: 12px;">학교정보</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">학교연락처</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">행정실 전화번호</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">(043) 715-2511</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #fef3c7; padding: 2px 8px; border-radius: 4px; font-size: 12px;">학교정보</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">학년/학급</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">대상 학년 및 학급</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">1학년, 2학년, 전체</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #dcfce7; padding: 2px 8px; border-radius: 4px; font-size: 12px;">대상정보</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">대상인원</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">해당 학생 수</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">1학년 학생 전원</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #dcfce7; padding: 2px 8px; border-radius: 4px; font-size: 12px;">대상정보</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">납입항목</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">수익자부담금 항목</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">기숙사비, 급식비</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #fce7f3; padding: 2px 8px; border-radius: 4px; font-size: 12px;">비용관련</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">납입금액</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">납부 금액 (원)</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">72,210원, 177,600원</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #fce7f3; padding: 2px 8px; border-radius: 4px; font-size: 12px;">비용관련</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">납입기간</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">자동이체 기간</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">2026.1.5.~1.19.</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #fce7f3; padding: 2px 8px; border-radius: 4px; font-size: 12px;">비용관련</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">시험기간</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">지필평가/수능 기간</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">12.8(월)-12.12(금)</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #e0e7ff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">일정관련</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">시험시간</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">교시별 시작/종료</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">08:40~10:00 (80분)</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #e0e7ff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">일정관련</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">방학기간</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">방학 시작/종료</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">겨울방학, 여름방학</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #e0e7ff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">일정관련</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">신청기간</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">신청 마감 기한</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">25.11.17.~26.1.16.</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #e0e7ff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">일정관련</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">담당부서</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">발행 부서</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">학생인성안전부, 행정실</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #f3e8ff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">조직정보</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">담당자명</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">작성/담당 교직원</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">손유정, 김지송</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #f3e8ff; padding: 2px 8px; border-radius: 4px; font-size: 12px;">조직정보</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">안내전화</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">문의/신고 전화</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">☎1388, ☎1577-0199</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #fef9c3; padding: 2px 8px; border-radius: 4px; font-size: 12px;">연락처</span></td></tr>
+          <tr><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">행사/프로그램명</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">이벤트/프로그램 제목</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #666;">해외이공계대학탐방</td><td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0;"><span style="background: #ccfbf1; padding: 2px 8px; border-radius: 4px; font-size: 12px;">활동관련</span></td></tr>
+          <tr><td style="padding: 12px 16px;">선택과목/영역</td><td style="padding: 12px 16px;">선택 교과목/시험 영역</td><td style="padding: 12px 16px; color: #666;">확률과 통계, 미적분</td><td style="padding: 12px 16px;"><span style="background: #fed7aa; padding: 2px 8px; border-radius: 4px; font-size: 12px;">학습정보</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</body>
+</html>

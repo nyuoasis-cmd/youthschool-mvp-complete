@@ -20,6 +20,7 @@ import EventPlanForm from "@/pages/EventPlanForm";
 import BullyingPreventionPlanForm from "@/pages/BullyingPreventionPlanForm";
 import ParentMeetingForm from "@/pages/ParentMeetingForm";
 import BudgetDisclosureForm from "@/pages/BudgetDisclosureForm";
+import MealNoticeForm from "@/pages/MealNoticeForm";
 import MyPage from "@/pages/MyPage";
 import MyPageDocumentsPage from "@/pages/MyPageDocuments";
 import MyPageFavoritesPage from "@/pages/MyPageFavorites";
@@ -120,6 +121,7 @@ function Router() {
       <ProtectedRoute path="/create/event-plan" component={EventPlanForm} />
       <ProtectedRoute path="/create/parent-meeting" component={ParentMeetingForm} />
       <ProtectedRoute path="/create/budget-disclosure" component={BudgetDisclosureForm} />
+      <ProtectedRoute path="/create/meal-notice" component={MealNoticeForm} />
       <ProtectedRoute path="/mypage" component={MyPage} />
       <ProtectedRoute path="/mypage/documents" component={MyPageDocumentsPage} />
       <ProtectedRoute path="/mypage/favorites" component={MyPageFavoritesPage} />

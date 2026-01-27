@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>가정통신문</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 20mm;
+    }
+    body {
+      font-family: '맑은 고딕', 'Malgun Gothic', sans-serif;
+      font-size: 11pt;
+      line-height: 1.8;
+      color: #333;
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 20mm;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .title {
+      font-size: 22pt;
+      font-weight: bold;
+      letter-spacing: 8px;
+      margin-bottom: 20px;
+    }
+    .meta {
+      text-align: right;
+      font-size: 10pt;
+      color: #666;
+      margin-bottom: 10px;
+    }
+    .subject {
+      text-align: center;
+      font-size: 14pt;
+      font-weight: bold;
+      margin: 30px 0;
+      padding: 10px;
+      background: #f5f5f5;
+      border-left: 4px solid #3b82f6;
+    }
+    .greeting {
+      margin: 20px 0;
+    }
+    .section {
+      margin: 20px 0;
+    }
+    .section-title {
+      font-weight: bold;
+      font-size: 11pt;
+      margin-bottom: 10px;
+      color: #1a1a1a;
+    }
+    .section-content {
+      margin-left: 20px;
+    }
+    .section-content li {
+      margin: 5px 0;
+    }
+    .closing {
+      text-align: center;
+      margin: 40px 0 20px;
+    }
+    .signature {
+      text-align: center;
+      margin: 30px 0;
+    }
+    .school-name {
+      font-size: 14pt;
+      font-weight: bold;
+    }
+    .footer {
+      border-top: 1px solid #ccc;
+      margin-top: 40px;
+      padding-top: 15px;
+      font-size: 9pt;
+      color: #666;
+    }
+    .variable {
+      background: #fef3c7;
+      padding: 2px 6px;
+      border-radius: 3px;
+      color: #92400e;
+      font-family: monospace;
+    }
+
+    /* 인쇄 시 변수 표시 제거 */
+    @media print {
+      .variable {
+        background: none;
+        color: inherit;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 헤더 -->
+  <div class="header">
+    <div class="title">가 정 통 신 문</div>
+  </div>
+
+  <!-- 메타 정보 -->
+  <div class="meta">
+    <span class="variable">{{문서발행년도}}</span>년
+    <span class="variable">{{문서발행월}}</span>
+    <span class="variable">{{문서발행일}}</span><br>
+    담당: <span class="variable">{{담당부서}}</span>
+  </div>
+
+  <!-- 제목 -->
+  <div class="subject">
+    <span class="variable">{{제목}}</span>
+  </div>
+
+  <!-- 인사말 -->
+  <div class="greeting">
+    <p>학부모님 안녕하십니까?</p>
+    <p>항상 본교 교육에 깊은 관심과 협조를 보내주셔서 감사드립니다.</p>
+    <p><span class="variable">{{주요내용}}</span></p>
+  </div>
+
+  <!-- 1. 일정 안내 -->
+  <div class="section">
+    <div class="section-title">1. 일정 안내</div>
+    <div class="section-content">
+      <ul>
+        <li>일시: <span class="variable">{{행사날짜}}</span> <span class="variable">{{시간}}</span></li>
+        <li>장소: <span class="variable">{{장소}}</span></li>
+        <li>대상: <span class="variable">{{학년/학급}}</span> <span class="variable">{{대상인원}}</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 2. 세부 내용 -->
+  <div class="section">
+    <div class="section-title">2. 세부 내용</div>
+    <div class="section-content">
+      <p><span class="variable">{{세부내용}}</span></p>
+    </div>
+  </div>
+
+  <!-- 3. 안내 사항 -->
+  <div class="section">
+    <div class="section-title">3. 안내 사항</div>
+    <div class="section-content">
+      <ul>
+        <li>신청 기간: <span class="variable">{{신청기간}}</span></li>
+        <li>마감일: <span class="variable">{{마감일}}</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 4. 비용 안내 (해당 시) -->
+  <div class="section">
+    <div class="section-title">4. 비용 안내 <span style="font-weight:normal;color:#666;">(해당 시)</span></div>
+    <div class="section-content">
+      <ul>
+        <li>납입 항목: <span class="variable">{{납입항목}}</span></li>
+        <li>납입 금액: <span class="variable">{{납입금액}}</span></li>
+        <li>납입 기간: <span class="variable">{{납입기간}}</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 5. 문의처 -->
+  <div class="section">
+    <div class="section-title">5. 문의처</div>
+    <div class="section-content">
+      <ul>
+        <li>담당자: <span class="variable">{{담당자명}}</span></li>
+        <li>연락처: <span class="variable">{{학교연락처}}</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 마무리 -->
+  <div class="closing">
+    <p>학부모님의 많은 관심과 협조 부탁드립니다.</p>
+    <p>감사합니다.</p>
+  </div>
+
+  <!-- 날짜 및 서명 -->
+  <div class="signature">
+    <p><span class="variable">{{문서발행년도}}</span>. <span class="variable">{{문서발행월}}</span>.</p>
+    <br>
+    <p class="school-name"><span class="variable">{{학교명}}</span>장</p>
+    <p style="color:#666;">[직인생략]</p>
+  </div>
+
+  <!-- 푸터 -->
+  <div class="footer">
+    <span class="variable">{{학교명}}</span> |
+    <span class="variable">{{학교주소}}</span><br>
+    TEL: <span class="variable">{{학교연락처}}</span> |
+    FAX: <span class="variable">{{팩스번호}}</span>
+  </div>
+
+</body>
+</html>
