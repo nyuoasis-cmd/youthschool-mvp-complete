@@ -1,10 +1,10 @@
 export const RAG_GITHUB = {
   owner: "nyuoasis-cmd",
-  repo: "school-newsletter-rag",
+  repo: "newsletter",
   ref: "main",
-  metadataPath: "metadata/documents.json",
+  metadataPath: "data/keyword_index.json",
   categoriesPath: "config/categories.json",
-  documentsBasePath: "documents",
+  documentsBasePath: "documents/_text",
 } as const;
 
 export const RAG_RAW_BASE_URL = `https://raw.githubusercontent.com/${RAG_GITHUB.owner}/${RAG_GITHUB.repo}/${RAG_GITHUB.ref}`;
