@@ -121,7 +121,7 @@ export function AppLayout({ children, showSidebar = true }: AppLayoutProps) {
 
       <div className="flex">
         {showSidebar && deviceType !== "mobile" && sidebarOpen && (
-          <aside className="hidden md:block w-60 border-r min-h-[calc(100vh-3.5rem)] sticky top-14">
+          <aside className="hidden md:block w-60 border-r bg-muted/30 min-h-[calc(100vh-3.5rem)] sticky top-14">
             <Sidebar />
           </aside>
         )}

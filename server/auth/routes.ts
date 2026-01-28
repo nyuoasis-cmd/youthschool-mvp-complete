@@ -120,7 +120,7 @@ passport.use(
 
         // Return user without password
         const { password: _, ...userWithoutPassword } = user;
-        return done(null, userWithoutPassword);
+        return done(null, userWithoutPassword as Express.User);
       } catch (error) {
         return done(error);
       }
@@ -142,7 +142,7 @@ passport.deserializeUser(async (id: number, done) => {
 
     if (user) {
       const { password: _, ...userWithoutPassword } = user;
-      done(null, userWithoutPassword);
+      done(null, userWithoutPassword as Express.User);
     } else {
       done(null, false);
     }
@@ -315,7 +315,9 @@ router.post("/register", async (req: Request, res: Response) => {
     }
 
     const data = validationResult.data;
-    const { step1, step2, terms } = data;
+    const step1 = data.step1;
+    const terms = data.terms;
+    const step2 = "step2" in data ? data.step2 : null;
 
     // Check email availability
     const [existing] = await db
@@ -336,15 +338,15 @@ router.post("/register", async (req: Request, res: Response) => {
 
     // Create user
     const organization = userType === "teacher"
-      ? (step2 as { schoolName?: string }).schoolName
+      ? (step2 as { schoolName?: string } | null)?.schoolName
       : userType === "school_admin"
-        ? (step2 as { schoolName?: string }).schoolName
+        ? (step2 as { schoolName?: string } | null)?.schoolName
         : undefined;
     const position = userType === "school_admin"
-      ? (step2 as { position?: string }).position
+      ? (step2 as { position?: string } | null)?.position
       : undefined;
 
-    const [newUser] = await db.insert(users).values({
+    const [newUser] = (await db.insert(users).values({
       email: step1.email.toLowerCase(),
       password: hashedPassword,
       userType: userType as UserType,
@@ -355,7 +357,7 @@ router.post("/register", async (req: Request, res: Response) => {
       status: initialStatus,
       organization: organization || null,
       position: position || null,
-    }).returning();
+    }).returning()) as Array<typeof users.$inferSelect>;
 
     // Create type-specific record
     if (userType === "teacher") {
@@ -467,7 +469,7 @@ router.post("/operators", async (req: Request, res: Response) => {
 
     const hashedPassword = await hashPassword(password);
 
-    const [newUser] = await db.insert(users).values({
+    const [newUser] = (await db.insert(users).values({
       email: email.toLowerCase(),
       password: hashedPassword,
       userType: USER_TYPES.OPERATOR,
@@ -476,7 +478,7 @@ router.post("/operators", async (req: Request, res: Response) => {
       phoneVerified: false,
       emailVerified: true,
       status: USER_STATUS.ACTIVE,
-    }).returning();
+    }).returning()) as Array<typeof users.$inferSelect>;
 
     res.status(201).json({
       success: true,
@@ -610,12 +612,8 @@ router.post("/login", (req: Request, res: Response, next) => {
       return res.status(401).json({ error: info?.message || "로그인에 실패했습니다" });
     }
 
-    // Handle remember me
-    if (result.data.rememberMe) {
-      req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
-    } else {
-      req.session.cookie.maxAge = 2 * 60 * 60 * 1000; // 2 hours
-    }
+    const sessionMaxAge = Number(process.env.SESSION_TIMEOUT) || 2 * 60 * 60 * 1000;
+    req.session.cookie.maxAge = sessionMaxAge;
 
     req.logIn(user, (err) => {
       if (err) {

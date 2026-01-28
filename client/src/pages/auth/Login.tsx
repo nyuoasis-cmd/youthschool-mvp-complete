@@ -19,6 +19,14 @@ const loginSchema = z.object({
   rememberMe: z.boolean().optional(),
 });
 
+const REMEMBER_STORAGE_KEYS = {
+  email: "rememberedEmail",
+  password: "rememberedPassword",
+  expiry: "rememberExpiry",
+};
+
+const REMEMBER_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+
 type LoginInput = z.infer<typeof loginSchema>;
 
 export default function Login() {
@@ -41,7 +49,7 @@ export default function Login() {
     defaultValues: {
       email: "",
       password: "",
-      rememberMe: false,
+      rememberMe: true,
     },
   });
 
@@ -71,12 +79,42 @@ export default function Login() {
     }
   }, [search, toast]);
 
+  useEffect(() => {
+    const expiry = window.localStorage.getItem(REMEMBER_STORAGE_KEYS.expiry);
+    if (expiry && Date.now() > Number(expiry)) {
+      window.localStorage.removeItem(REMEMBER_STORAGE_KEYS.email);
+      window.localStorage.removeItem(REMEMBER_STORAGE_KEYS.password);
+      window.localStorage.removeItem(REMEMBER_STORAGE_KEYS.expiry);
+      return;
+    }
+
+    const savedEmail = window.localStorage.getItem(REMEMBER_STORAGE_KEYS.email);
+    const savedPassword = window.localStorage.getItem(REMEMBER_STORAGE_KEYS.password);
+    if (savedEmail && savedPassword) {
+      setValue("email", savedEmail);
+      setValue("password", savedPassword);
+      setValue("rememberMe", true);
+    }
+  }, [setValue]);
+
   const onSubmit = async (data: LoginInput) => {
     setIsLoading(true);
     setErrorMessage(null);
 
     try {
       const user = await login(data);
+      if (data.rememberMe) {
+        window.localStorage.setItem(REMEMBER_STORAGE_KEYS.email, data.email);
+        window.localStorage.setItem(REMEMBER_STORAGE_KEYS.password, data.password);
+        window.localStorage.setItem(
+          REMEMBER_STORAGE_KEYS.expiry,
+          String(Date.now() + REMEMBER_DURATION_MS)
+        );
+      } else {
+        window.localStorage.removeItem(REMEMBER_STORAGE_KEYS.email);
+        window.localStorage.removeItem(REMEMBER_STORAGE_KEYS.password);
+        window.localStorage.removeItem(REMEMBER_STORAGE_KEYS.expiry);
+      }
 
       toast({
         title: "로그인 성공",
@@ -178,7 +216,7 @@ export default function Login() {
               disabled={isLoading}
             />
             <Label htmlFor="rememberMe" className="text-sm font-normal cursor-pointer">
-              자동 로그인
+              로그인 정보 기억하기
             </Label>
           </div>
           <Link

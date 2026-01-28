@@ -20,6 +20,7 @@ const PgSession = connectPgSimple(session);
 export async function setupAuth(app: Express): Promise<void> {
   // Session configuration
   const sessionSecret = process.env.SESSION_SECRET || "youthschool-secret-key-change-in-production";
+  const sessionMaxAge = Number(process.env.SESSION_TIMEOUT) || 2 * 60 * 60 * 1000;
 
   app.use(
     session({
@@ -34,7 +35,7 @@ export async function setupAuth(app: Express): Promise<void> {
       cookie: {
         secure: process.env.NODE_ENV === "production",
         httpOnly: true,
-        maxAge: 2 * 60 * 60 * 1000, // 2 hours default
+        maxAge: sessionMaxAge, // 2 hours default
         sameSite: "lax",
       },
     })
