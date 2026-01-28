@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
 import { ArrowLeft, Sparkles, Loader2, Wand2, Eye } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -72,10 +71,10 @@ const createNoticeItem = (): NoticeItem => ({
 });
 
 export default function MealNoticeForm() {
-  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [generatingField, setGeneratingField] = useState<string | null>(null);
+  const [isGeneratingAll, setIsGeneratingAll] = useState(false);
   const [academicYear, setAcademicYear] = useState("2025학년도");
   const [month, setMonth] = useState("4월");
   const [greeting, setGreeting] = useState("");
@@ -164,6 +163,43 @@ export default function MealNoticeForm() {
     }
   };
 
+  const applyGeneratedField = (fieldName: string, generatedContent: string) => {
+    if (fieldName === "greeting") {
+      setGreeting(generatedContent);
+      return true;
+    }
+
+    if (fieldName === "paymentDetails") {
+      const parsed = parsePaymentDetails(generatedContent);
+      if (parsed) {
+        setPaymentDetails(parsed);
+        return true;
+      }
+      toast({
+        title: "AI 생성 결과 확인 필요",
+        description: "납부내역 형식을 확인해주세요.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (fieldName === "notices") {
+      const parsed = parseNotices(generatedContent);
+      if (parsed) {
+        setNotices(parsed);
+        return true;
+      }
+      toast({
+        title: "AI 생성 결과 확인 필요",
+        description: "안내 항목 형식을 확인해주세요.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return false;
+  };
+
   const generateFieldMutation = useMutation({
     mutationFn: async ({ fieldName, fieldLabel }: { fieldName: string; fieldLabel: string }) => {
       setGeneratingField(fieldName);
@@ -188,36 +224,13 @@ export default function MealNoticeForm() {
     onSuccess: (data) => {
       setGeneratingField(null);
       const generatedContent = String(data.generatedContent || "").trim();
-      if (data.fieldName === "greeting") {
-        setGreeting(generatedContent);
-      } else if (data.fieldName === "paymentDetails") {
-        const parsed = parsePaymentDetails(generatedContent);
-        if (parsed) {
-          setPaymentDetails(parsed);
-        } else {
-          toast({
-            title: "AI 생성 결과 확인 필요",
-            description: "납부내역 형식을 확인해주세요.",
-            variant: "destructive",
-          });
-        }
-      } else if (data.fieldName === "notices") {
-        const parsed = parseNotices(generatedContent);
-        if (parsed) {
-          setNotices(parsed);
-        } else {
-          toast({
-            title: "AI 생성 결과 확인 필요",
-            description: "안내 항목 형식을 확인해주세요.",
-            variant: "destructive",
-          });
-        }
+      const applied = applyGeneratedField(data.fieldName, generatedContent);
+      if (applied) {
+        toast({
+          title: "AI 생성 완료",
+          description: "내용이 생성되었습니다. 필요시 수정해주세요.",
+        });
       }
-
-      toast({
-        title: "AI 생성 완료",
-        description: "내용이 생성되었습니다. 필요시 수정해주세요.",
-      });
     },
     onError: (error: Error) => {
       setGeneratingField(null);
@@ -229,51 +242,76 @@ export default function MealNoticeForm() {
     },
   });
 
-  const generateMutation = useMutation({
+  const generateAllMutation = useMutation({
     mutationFn: async () => {
-      const paymentText = paymentDetails
-        .map(
-          (row) =>
-            `- ${row.grade || "(학년 미입력)"} | ${row.category || "(구분 미입력)"} | ${row.calculation || "(산출내역 미입력)"} | ${row.amount || "(납부금액 미입력)"} | ${row.note || ""}`
-        )
-        .join("\n");
+      const fields = [
+        { fieldName: "greeting", fieldLabel: "인사말" },
+        { fieldName: "paymentDetails", fieldLabel: "납부내역" },
+        { fieldName: "notices", fieldLabel: "추가 안내 항목" },
+      ];
 
-      const noticeText = notices
-        .map((notice, index) => `${index + 1}. ${notice.content || "(안내사항 미입력)"}`)
-        .join("\n");
+      const results: Array<{ fieldName: string; generatedContent: string }> = [];
 
-      const response = await apiRequest("POST", "/api/documents/generate", {
-        documentType: "급식안내문",
-        inputs: {
-          academicYear,
-          month,
-          title: previewTitle,
-          greeting,
-          mealPeriod,
-          paymentPeriod,
-          paymentDetails: paymentText,
-          paymentMethod,
-          notices: noticeText,
-          issueDate,
-          principalSignature: signatureText,
-          schoolName,
-        },
-      });
-      return response.json();
+      for (const field of fields) {
+        const response = await apiRequest("POST", "/api/documents/generate-field", {
+          documentType: "급식안내문",
+          fieldName: field.fieldName,
+          fieldLabel: field.fieldLabel,
+          context: {
+            academicYear,
+            month,
+            title: previewTitle,
+            greeting,
+            mealPeriod,
+            paymentPeriod,
+            paymentMethod,
+            issueDate,
+            schoolName,
+          },
+        });
+
+        const data = await response.json();
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        results.push({
+          fieldName: data.fieldName || field.fieldName,
+          generatedContent: String(data.generatedContent || "").trim(),
+        });
+      }
+
+      return results;
     },
-    onSuccess: (data) => {
-      toast({
-        title: "문서 생성 완료",
-        description: "급식안내문이 성공적으로 생성되었습니다.",
+    onMutate: () => {
+      setIsGeneratingAll(true);
+    },
+    onSuccess: (results) => {
+      let hasError = false;
+      results.forEach(({ fieldName, generatedContent }) => {
+        const applied = applyGeneratedField(fieldName, generatedContent);
+        if (!applied) {
+          hasError = true;
+        }
       });
-      setLocation(`/result/${data.id}`, { state: { document: data } });
+
+      toast({
+        title: hasError ? "일부 항목 확인 필요" : "AI 전부 생성 완료",
+        description: hasError
+          ? "일부 항목의 결과 형식을 확인해주세요."
+          : "모든 항목이 생성되었습니다. 필요시 수정해주세요.",
+        variant: hasError ? "destructive" : "default",
+      });
     },
     onError: (error: Error) => {
       toast({
-        title: "문서 생성 실패",
-        description: error.message || "문서 생성 중 오류가 발생했습니다.",
+        title: "AI 전부 생성 실패",
+        description: error.message || "AI 생성 중 오류가 발생했습니다.",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      setIsGeneratingAll(false);
     },
   });
 
@@ -302,7 +340,7 @@ export default function MealNoticeForm() {
             </Button>
             <div>
               <h1 className="text-lg font-semibold text-foreground">급식안내문 작성</h1>
-              <p className="text-sm text-muted-foreground">필요한 정보를 입력하면 AI가 급식안내문을 생성합니다</p>
+              <p className="text-sm text-muted-foreground">필요한 정보를 입력하면 AI가 항목을 작성합니다</p>
             </div>
           </div>
         </div>
@@ -315,7 +353,7 @@ export default function MealNoticeForm() {
               <Sparkles className="w-5 h-5 text-primary" />
               급식안내문 정보 입력
             </CardTitle>
-            <CardDescription>입력한 내용으로 AI가 급식안내문을 생성합니다.</CardDescription>
+            <CardDescription>입력한 내용으로 AI가 항목을 생성합니다.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <section className="space-y-3">
@@ -367,7 +405,7 @@ export default function MealNoticeForm() {
                   variant="outline"
                   size="sm"
                   onClick={() => generateFieldMutation.mutate({ fieldName: "greeting", fieldLabel: "인사말" })}
-                  disabled={generatingField === "greeting"}
+                  disabled={generatingField === "greeting" || isGeneratingAll}
                 >
                   {generatingField === "greeting" ? (
                     <>
@@ -421,7 +459,7 @@ export default function MealNoticeForm() {
                   variant="outline"
                   size="sm"
                   onClick={() => generateFieldMutation.mutate({ fieldName: "paymentDetails", fieldLabel: "납부내역" })}
-                  disabled={generatingField === "paymentDetails"}
+                  disabled={generatingField === "paymentDetails" || isGeneratingAll}
                 >
                   {generatingField === "paymentDetails" ? (
                     <>
@@ -534,7 +572,7 @@ export default function MealNoticeForm() {
                   variant="outline"
                   size="sm"
                   onClick={() => generateFieldMutation.mutate({ fieldName: "notices", fieldLabel: "추가 안내 항목" })}
-                  disabled={generatingField === "notices"}
+                  disabled={generatingField === "notices" || isGeneratingAll}
                 >
                   {generatingField === "notices" ? (
                     <>
@@ -607,16 +645,21 @@ export default function MealNoticeForm() {
                 <Eye className="w-4 h-4 mr-2" />
                 미리보기
               </Button>
-              <Button type="button" className="flex-1" onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
-                {generateMutation.isPending ? (
+              <Button
+                type="button"
+                className="flex-1"
+                onClick={() => generateAllMutation.mutate()}
+                disabled={generateAllMutation.isPending || isGeneratingAll}
+              >
+                {generateAllMutation.isPending || isGeneratingAll ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    문서 생성 중...
+                    AI 전부 생성 중...
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4 mr-2" />
-                    AI로 문서 생성하기
+                    AI 전부 생성
                   </>
                 )}
               </Button>
