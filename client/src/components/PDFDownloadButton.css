@@ -1,0 +1,46 @@
+.pdf-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #3B82F6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.pdf-download-btn:hover {
+  background: #2563EB;
+}
+
+.pdf-download-btn:disabled {
+  background: #9CA3AF;
+  cursor: not-allowed;
+}
+
+.pdf-download-btn.loading {
+  background: #6B7280;
+}
+
+.pdf-download-btn .icon {
+  font-size: 16px;
+}
+
+.pdf-download-btn .spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #ffffff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

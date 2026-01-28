@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Sparkles, Loader2, Wand2, Eye } from "lucide-react";
 import { Link } from "wouter";
+import PDFDownloadButton from "@/components/PDFDownloadButton";
+import MealNoticePreview from "@/components/MealNoticePreview";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -85,6 +87,7 @@ export default function MealNoticeForm() {
   const [notices, setNotices] = useState<NoticeItem[]>([createNoticeItem()]);
   const [issueDate, setIssueDate] = useState("");
   const [principalSignature, setPrincipalSignature] = useState("");
+  const documentRef = useRef<HTMLDivElement>(null);
 
   const { data: profile } = useQuery<ProfileData>({
     queryKey: ["/api/auth/profile"],
@@ -98,6 +101,7 @@ export default function MealNoticeForm() {
 
   const schoolName = profile?.schoolName || "학교명";
   const signatureText = principalSignature || (schoolName ? `${schoolName}장` : "");
+  const pdfFileName = `${academicYear}_${month}_급식안내문`;
 
   const handleAddPaymentRow = () => {
     setPaymentDetails((prev) => [...prev, createPaymentRow()]);
@@ -328,20 +332,41 @@ export default function MealNoticeForm() {
     setPrincipalSignature("");
   };
 
+  // 미리보기 공통 props
+  const previewProps = {
+    schoolName,
+    year: academicYear,
+    month,
+    greeting,
+    mealPeriod,
+    paymentPeriod,
+    paymentMethod,
+    paymentDetails,
+    notices,
+    issueDate,
+    signatureText,
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-6 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild data-testid="button-back">
-              <Link href="/">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-            </Button>
-            <div>
-              <h1 className="text-lg font-semibold text-foreground">급식안내문 작성</h1>
-              <p className="text-sm text-muted-foreground">필요한 정보를 입력하면 AI가 항목을 작성합니다</p>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" asChild data-testid="button-back">
+                <Link href="/">
+                  <ArrowLeft className="w-5 h-5" />
+                </Link>
+              </Button>
+              <div>
+                <h1 className="text-lg font-semibold text-foreground">급식안내문 작성</h1>
+                <p className="text-sm text-muted-foreground">필요한 정보를 입력하면 AI가 항목을 작성합니다</p>
+              </div>
             </div>
+            <PDFDownloadButton
+              contentRef={documentRef}
+              fileName={pdfFileName}
+            />
           </div>
         </div>
       </header>
@@ -676,87 +701,31 @@ export default function MealNoticeForm() {
           <DialogHeader className="border-b px-6 py-4">
             <DialogTitle>📄 문서 미리보기</DialogTitle>
           </DialogHeader>
-          <div className="max-h-[80vh] overflow-y-auto bg-muted/40 p-6">
-            <div className="mx-auto w-[210mm] min-h-[297mm] bg-white p-[15mm] text-[11pt] leading-relaxed text-black shadow-lg">
-              <div className="flex items-center justify-between border-b-2 border-black pb-3">
-                <div className="text-[18pt] font-bold">{schoolName}</div>
-                <div className="flex-1 text-center text-[22pt] font-bold tracking-[12px]">
-                  가 정 통 신 문
-                </div>
-                <table className="border-collapse text-[9pt]">
-                  <tbody>
-                    {["제공부서", "담 당 자", "전화번호"].map((label) => (
-                      <tr key={label}>
-                        <th className="border border-gray-400 bg-gray-100 px-2 py-1 font-semibold">{label}</th>
-                        <td className="border border-gray-400 px-4" />
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="my-8 text-center text-[18pt] font-bold underline underline-offset-4">
-                {previewTitle}
-              </div>
-
-              <div className="mb-5 whitespace-pre-line">{greeting || " "}</div>
-
-              <div className="space-y-2">
-                <div>
-                  <strong>1. 급식 기간 : </strong>
-                  {mealPeriod || " "}
-                </div>
-                <div>
-                  <strong>2. 급식비 납부기간 : </strong>
-                  {paymentPeriod || " "}
-                </div>
-                <div>
-                  <strong>3. 납부내역</strong>
-                </div>
-              </div>
-
-              <table className="mt-3 w-full border-collapse text-[10pt]">
-                <thead>
-                  <tr>
-                    {["학 년", "구 분", "산 출 내 역", "납부금액", "비 고"].map((label) => (
-                      <th key={label} className="border border-black bg-gray-100 px-3 py-2 text-center font-semibold">
-                        {label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {paymentDetails.map((row) => (
-                    <tr key={row.id}>
-                      <td className="border border-black px-3 py-2 text-center">{row.grade || " "}</td>
-                      <td className="border border-black px-3 py-2 text-center">{row.category || " "}</td>
-                      <td className="border border-black px-3 py-2 text-center">{row.calculation || " "}</td>
-                      <td className="border border-black px-3 py-2 text-center">{row.amount || " "}</td>
-                      <td className="border border-black px-3 py-2 text-center">{row.note || " "}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              <div className="mt-4">
-                <strong>4. 납부방법 : </strong>
-                {paymentMethod || " "}
-              </div>
-
-              <div className="mt-4 space-y-2 text-[10pt]">
-                {notices.map((notice) => (
-                  <div key={notice.id}>※ {notice.content || " "}</div>
-                ))}
-              </div>
-
-              <div className="mt-12 text-center">
-                <div className="text-[14pt]">{issueDate || " "}</div>
-                <div className="mt-4 text-[20pt] font-bold tracking-[16px]">{signatureText}</div>
-              </div>
-            </div>
+          <div
+            className="max-h-[80vh] overflow-y-auto bg-muted/40 p-6"
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "flex-start",
+            }}
+          >
+            <MealNoticePreview {...previewProps} />
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* PDF 출력용 숨김 영역 */}
+      <div
+        style={{
+          position: "absolute",
+          left: "-9999px",
+          top: 0,
+          overflow: "visible",
+        }}
+        aria-hidden
+      >
+        <MealNoticePreview ref={documentRef} {...previewProps} />
+      </div>
     </div>
   );
 }
