@@ -260,7 +260,7 @@ export default function Chat() {
                   <div className="space-y-6 text-center">
                     <div className="space-y-2">
                       <div className="text-2xl font-semibold">
-                        {user?.name ? `${user.name} 선생님,` : "안녕하세요,"}
+                        {user?.name ? `${user.name} 선생님,` : "안녕하세요"}
                       </div>
                       <p className="text-muted-foreground">무엇을 도와드릴까요?</p>
                     </div>
@@ -316,7 +316,7 @@ export default function Chat() {
                     value={messageInput}
                     onChange={(event) => setMessageInput(event.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="무엇을 도와드릴까요?"
+                    placeholder="티처메이트에게 물어보기"
                     rows={2}
                     className="resize-none border-0 focus-visible:ring-0"
                     maxLength={10000}

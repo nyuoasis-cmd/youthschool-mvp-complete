@@ -309,7 +309,6 @@ export default function Home() {
       <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-primary" />
             <span className="font-semibold text-lg">티처메이트</span>
           </Link>
           <div className="flex items-center gap-3">
@@ -415,7 +414,7 @@ export default function Home() {
                     <div className="w-full max-w-2xl space-y-6">
                       <div className="text-center space-y-3">
                         <h1 className="text-4xl md:text-5xl font-semibold">
-                          {user?.name ? `${user.name} 선생님,` : "안녕하세요,"}
+                          {user?.name ? `${user.name} 선생님,` : "안녕하세요"}
                         </h1>
                         <p className="text-lg md:text-xl text-muted-foreground">무엇을 도와드릴까요?</p>
                       </div>
@@ -439,7 +438,7 @@ export default function Home() {
                             value={chatInput}
                             onChange={(event) => setChatInput(event.target.value)}
                             onKeyDown={handleChatKeyDown}
-                            placeholder="무엇을 도와드릴까요?"
+                            placeholder="티처메이트에게 물어보기"
                             rows={2}
                             className="resize-none border-0 focus-visible:ring-0 text-center text-base min-h-[96px]"
                             maxLength={10000}
@@ -522,7 +521,7 @@ export default function Home() {
                               value={chatInput}
                               onChange={(event) => setChatInput(event.target.value)}
                               onKeyDown={handleChatKeyDown}
-                              placeholder="무엇을 도와드릴까요?"
+                              placeholder="티처메이트에게 물어보기"
                               rows={2}
                               className="resize-none border-0 focus-visible:ring-0 text-base min-h-[96px]"
                               maxLength={10000}
@@ -626,7 +625,7 @@ export default function Home() {
                               </div>
                               <div className="flex-1">
                                 <CardTitle className="text-base mb-1">{doc.title}</CardTitle>
-                                <CardDescription className="text-sm leading-relaxed line-clamp-2">
+                                <CardDescription className="text-sm leading-relaxed line-clamp-2 word-keep-all">
                                   {doc.description}
                                 </CardDescription>
                               </div>
@@ -670,7 +669,7 @@ export default function Home() {
                           <h3 className="text-lg font-semibold text-foreground mb-2">
                             {feature.title}
                           </h3>
-                          <p className="text-muted-foreground leading-relaxed">
+                          <p className="text-muted-foreground leading-relaxed word-keep-all">
                             {feature.description}
                           </p>
                         </div>

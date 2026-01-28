@@ -209,6 +209,10 @@
     pointer-events: none;
   }
 
+  .word-keep-all {
+    word-break: keep-all;
+  }
+
   /* .no-default-hover-elevate/no-default-active-elevate is an escape hatch so consumers of
    * buttons/badges can remove the automatic brightness adjustment on interactions
    * and program their own. */

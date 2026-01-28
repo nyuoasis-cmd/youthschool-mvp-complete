@@ -29,7 +29,7 @@ export function Header({ onMenuClick, showMenuButton = true }: HeaderProps) {
           href="/"
           className="flex items-center gap-2 font-semibold text-lg hover:opacity-80 transition-opacity"
         >
-          ⭐ 티처메이트
+          티처메이트
         </a>
 
         <Button
