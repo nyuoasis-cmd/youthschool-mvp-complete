@@ -33,6 +33,16 @@ const documentTypes = [
     levels: ["초등학교", "중학교", "고등학교"],
   },
   {
+    id: "absence-report",
+    title: "결석신고서",
+    description: "질병/출석인정/기타/미인정 결석 신고서를 간편하게 작성합니다.",
+    icon: FileText,
+    href: "/create/absence-report",
+    examples: ["질병결석 신고", "출석인정 결석", "증빙서류 첨부"],
+    category: "행정업무",
+    levels: ["초등학교", "중학교", "고등학교"],
+  },
+  {
     id: "parent-meeting",
     title: "학부모총회 안내",
     description: "학기 초 학부모총회 안내문을 전문적으로 작성합니다.",
