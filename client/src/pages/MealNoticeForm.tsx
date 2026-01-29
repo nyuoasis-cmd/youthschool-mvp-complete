@@ -1,12 +1,18 @@
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Sparkles, Loader2, Wand2 } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2, Wand2, Eye } from "lucide-react";
 import { Link } from "wouter";
 import PDFDownloadButton from "@/components/PDFDownloadButton";
 import MealNoticePreview from "@/components/MealNoticePreview";
 import DateRangePicker, { DateRangeValue } from "@/components/common/DateRangePicker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -19,6 +25,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatDateRange } from "@/utils/dateFormat";
+import { GuideSidebar, MealNoticeGuide } from "@/components/guide-sidebar";
 
 type PaymentRow = {
   id: string;
@@ -70,6 +77,8 @@ const createNoticeItem = (): NoticeItem => ({
 
 export default function MealNoticeForm() {
   const { toast } = useToast();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [generatingField, setGeneratingField] = useState<string | null>(null);
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
   const [academicYear, setAcademicYear] = useState("2025학년도");
@@ -351,8 +360,8 @@ export default function MealNoticeForm() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50">
+    <div className="min-h-screen bg-background relative">
+      <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50 h-[73px]">
         <div className="max-w-4xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -374,7 +383,7 @@ export default function MealNoticeForm() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-8">
+      <main className={`max-w-4xl mx-auto px-6 py-8 transition-all duration-300 ${isSidebarOpen ? 'mr-[360px]' : ''}`}>
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -667,6 +676,10 @@ export default function MealNoticeForm() {
             </section>
 
             <div className="flex flex-col gap-3 pt-4 sm:flex-row">
+              <Button type="button" variant="outline" onClick={() => setIsPreviewOpen(true)}>
+                <Eye className="w-4 h-4 mr-2" />
+                미리보기
+              </Button>
               <Button
                 type="button"
                 className="flex-1"
@@ -692,6 +705,27 @@ export default function MealNoticeForm() {
           </CardContent>
         </Card>
       </main>
+
+      {/* 미리보기 모달 */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-5xl p-0">
+          <DialogHeader className="border-b px-6 py-4">
+            <DialogTitle>📄 문서 미리보기</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[80vh] overflow-y-auto bg-muted/40 p-6">
+            <MealNoticePreview {...previewProps} />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 가이드 사이드바 */}
+      <GuideSidebar
+        isOpen={isSidebarOpen}
+        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        title="작성 가이드"
+      >
+        <MealNoticeGuide />
+      </GuideSidebar>
 
       {/* PDF 출력용 숨김 영역 */}
       <div
