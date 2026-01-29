@@ -785,37 +785,72 @@ ${contextDescription || "시험 정보 없음"}
 
 유의사항만 출력:`;
         } else if (fieldName === "schedules") {
-          prompt = `[핵심 지시] 수능/모의평가 표준 시간표를 기반으로 작성하되, 참고 문서의 형식을 참고하세요.
+          // 시간표는 국가 규정이므로 내용은 고정, 형식/표현만 다양화
+          const includeBreaks = Math.random() > 0.5;
+          const includeLunch = Math.random() > 0.3;
+          const noteStyles = ["상세", "간단", "최소"];
+          const randomNoteStyle = noteStyles[Math.floor(Math.random() * noteStyles.length)];
+          const periodFormats = ["1교시", "제1교시", "1", "①"];
+          const randomPeriodFormat = periodFormats[Math.floor(Math.random() * periodFormats.length)];
 
-[입력 정보]
-${contextDescription || "시험 정보 없음"}
+          prompt = `[수능/모의평가 시간표 - 한국교육과정평가원 공식 규정]
 
-[표준 시간표 참고]
-1교시 국어 08:40~10:00(80분), 2교시 수학 10:30~12:10(100분), 점심 12:10~13:10,
-3교시 영어 13:10~14:20(70분), 4교시 한국사/탐구 14:50~16:32, 5교시 제2외국어/한문 17:00~17:40(40분)
+시간과 과목은 국가 규정이므로 변경 불가. 표현 방식만 다양화하세요.
 
-[규칙]
-- 참고 문서에서 비고란 표현 방식 차용
-- 점심시간 포함 여부는 참고 문서 따름
+[공식 시간표]
+1교시: 국어 08:40~10:00 (80분, 45문항)
+휴식: 10:00~10:30 (30분)
+2교시: 수학 10:30~12:10 (100분, 30문항)
+점심: 12:10~13:10 (60분)
+3교시: 영어 13:10~14:20 (70분, 45문항)
+휴식: 14:20~14:50 (30분)
+4교시: 한국사+탐구 14:50~16:32
+5교시: 제2외국어/한문 17:00~17:40 (40분, 30문항)
 
-JSON 배열만 출력 (코드블록 없이):
+[이번 생성 설정]
+- 교시 표기: "${randomPeriodFormat}" 스타일
+- 쉬는시간 포함: ${includeBreaks ? "예" : "아니오"}
+- 점심시간 포함: ${includeLunch ? "예" : "아니오"}
+- 비고란 스타일: ${randomNoteStyle}
+
+[비고란 표현 예시]
+- 상세: "공통과목 및 선택과목(확률과통계/미적분/기하 중 택1)"
+- 간단: "공통+선택"
+- 최소: "" (비워둠)
+
+JSON 배열만 출력:
 [{"period":"","subject":"","time":"","questions":"","note":""}]`;
         } else if (fieldName === "supplies") {
+          // 준비물도 규정 품목이므로 내용은 비슷, 표현만 다양화
           const countOptions = [5, 6, 7, 8];
           const randomCount = countOptions[Math.floor(Math.random() * countOptions.length)];
+          const descStyles = ["괄호 상세설명", "간단명료", "예시 포함"];
+          const randomDescStyle = descStyles[Math.floor(Math.random() * descStyles.length)];
+          const verbStyles = ["지참", "준비", "가져올 것", "필히 지참", "반드시 준비"];
+          const randomVerb = verbStyles[Math.floor(Math.random() * verbStyles.length)];
 
-          prompt = `[핵심 지시] 참고 문서의 준비물 안내를 분석하고, 표현을 다양하게 변형하여 작성하세요.
+          prompt = `[수능/모의평가 준비물 - 규정 품목]
 
-[입력 정보]
-${contextDescription || "시험 정보 없음"}
+준비물은 규정되어 있으므로 품목은 동일. 표현 방식만 다양화하세요.
 
-[이번 생성: ${randomCount}개 항목]
+[필수 준비물]
+- 신분증 (주민등록증, 여권, 학생증, 청소년증 등)
+- 수험표
+- 검은색 컴퓨터용 사인펜
+- 수정테이프 (수정액 불가)
+- 샤프 또는 연필 (계산용)
+- 지우개
+- 아날로그 시계 (통신기능 없는 것)
 
-[규칙]
-1. 참고 문서에서 준비물 표현 방식 차용 (괄호 설명, 쉼표 나열 등)
-2. 필수: 신분증, 수험표, 필기구, 시계
-3. 추가: 참고 문서에서 발견한 항목들 포함
-4. 표현 다양화: "지참" vs "준비" vs "가져올 것" 등 매번 다르게
+[이번 생성 설정]
+- 항목 수: ${randomCount}개
+- 설명 스타일: ${randomDescStyle}
+- 동사: "${randomVerb}"
+
+[표현 다양화 예시]
+- 신분증: "신분증(주민등록증, 여권 등)" vs "본인 확인 가능한 신분증" vs "신분증 필수(학생증 가능)"
+- 사인펜: "검은색 컴퓨터용 사인펜" vs "OMR 마킹용 검정 펜" vs "컴퓨터용 수성 사인펜(검정)"
+- 시계: "아날로그 시계" vs "손목시계(스마트워치 제외)" vs "통신기능 없는 시계"
 
 JSON 문자열 배열만 출력:`;
         } else if (fieldName === "entryTime") {
@@ -845,23 +880,26 @@ JSON 객체만 출력:
             "귀가 시간", "성적 발표 일정", "문의처", "코로나 방역",
             "시험장 배치", "주차 안내", "학부모 협조", "휴식 시간 활용"
           ];
-          // 랜덤하게 4~5개 선택
-          const shuffled = topicPool.sort(() => Math.random() - 0.5);
+          // 랜덤하게 3~5개 선택
+          const shuffled = [...topicPool].sort(() => Math.random() - 0.5);
           const selectedTopics = shuffled.slice(0, 3 + Math.floor(Math.random() * 3));
 
-          prompt = `[핵심 지시] 참고 문서의 추가 안내사항을 분석하고, 아래 주제들에 대해 작성하세요.
+          prompt = `[핵심 지시] 아래 주제들에 대해 추가 안내사항을 작성하세요.
 
 [입력 정보]
 ${contextDescription || "시험 정보 없음"}
 
-[이번 생성 주제: ${selectedTopics.join(", ")}]
+[이번 생성 주제]
+${selectedTopics.map((t, i) => `${i + 1}. ${t}`).join("\n")}
 
 [규칙]
-1. 참고 문서에서 비슷한 안내 표현 차용
-2. 위 주제들만 다룸 (다른 주제 추가 금지)
-3. 각 항목 1~2문장으로 간결하게
+1. 위 주제들에 대해서만 작성 (${selectedTopics.length}개 항목)
+2. 각 항목 1~2문장으로 간결하게
+3. 학부모/학생에게 전달하는 안내 톤으로 작성
 
-JSON 문자열 배열만 출력:`;
+[출력 형식]
+반드시 아래와 같은 JSON 문자열 배열 형식으로만 출력하세요. 코드블록(\`\`\`) 없이 순수 JSON만:
+["첫번째 안내사항입니다.","두번째 안내사항입니다.","세번째 안내사항입니다."]`;
         }
       } else if (documentType === "외부 교육 용역 계획서") {
         if (fieldName === "objectives") {
