@@ -15,6 +15,7 @@ import AfterSchoolPlanForm from "@/pages/AfterSchoolPlanForm";
 import CarePlanForm from "@/pages/CarePlanForm";
 import TemplateForm from "@/pages/TemplateForm";
 import FieldTripPlanForm from "@/pages/FieldTripPlanForm";
+import FieldTripApplicationForm from "@/pages/FieldTripApplicationForm";
 import SafetyEducationPlanForm from "@/pages/SafetyEducationPlanForm";
 import EventPlanForm from "@/pages/EventPlanForm";
 import BullyingPreventionPlanForm from "@/pages/BullyingPreventionPlanForm";
@@ -116,6 +117,7 @@ function Router() {
       <ProtectedRoute path="/create/after-school-plan" component={AfterSchoolPlanForm} />
       <ProtectedRoute path="/create/care-plan" component={CarePlanForm} />
       <ProtectedRoute path="/create/field-trip-plan" component={FieldTripPlanForm} />
+      <ProtectedRoute path="/create/field-trip-application" component={FieldTripApplicationForm} />
       <ProtectedRoute path="/create/safety-education-plan" component={SafetyEducationPlanForm} />
       <ProtectedRoute path="/create/bullying-prevention-plan" component={BullyingPreventionPlanForm} />
       <ProtectedRoute path="/create/event-plan" component={EventPlanForm} />

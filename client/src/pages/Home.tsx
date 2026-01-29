@@ -93,6 +93,16 @@ const documentTypes = [
     levels: ["초등학교", "중학교", "고등학교"],
   },
   {
+    id: "field-trip-application",
+    title: "교외체험학습 신청서",
+    description: "교외체험학습 신청 정보를 입력하면 신청서를 자동으로 완성합니다.",
+    icon: MapPin,
+    href: "/create/field-trip-application",
+    examples: ["체험학습 기간", "체험 유형 선택", "동의 사항 작성"],
+    category: "행정업무",
+    levels: ["초등학교", "중학교", "고등학교"],
+  },
+  {
     id: "safety-education-plan",
     title: "학교 안전교육 계획서",
     description: "7대 안전교육을 포함한 연간/학기별 안전교육 계획서를 자동 생성합니다.",

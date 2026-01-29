@@ -1,19 +1,14 @@
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Sparkles, Loader2, Wand2, Eye } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2, Wand2 } from "lucide-react";
 import { Link } from "wouter";
 import PDFDownloadButton from "@/components/PDFDownloadButton";
 import MealNoticePreview from "@/components/MealNoticePreview";
+import DateRangePicker, { DateRangeValue } from "@/components/common/DateRangePicker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -23,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { formatDateRange } from "@/utils/dateFormat";
 
 type PaymentRow = {
   id: string;
@@ -74,14 +70,13 @@ const createNoticeItem = (): NoticeItem => ({
 
 export default function MealNoticeForm() {
   const { toast } = useToast();
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [generatingField, setGeneratingField] = useState<string | null>(null);
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
   const [academicYear, setAcademicYear] = useState("2025학년도");
   const [month, setMonth] = useState("4월");
   const [greeting, setGreeting] = useState("");
-  const [mealPeriod, setMealPeriod] = useState("");
-  const [paymentPeriod, setPaymentPeriod] = useState("");
+  const [mealPeriod, setMealPeriod] = useState<DateRangeValue>({ start: "", end: "" });
+  const [paymentPeriod, setPaymentPeriod] = useState<DateRangeValue>({ start: "", end: "" });
   const [paymentDetails, setPaymentDetails] = useState<PaymentRow[]>([createPaymentRow()]);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [notices, setNotices] = useState<NoticeItem[]>([createNoticeItem()]);
@@ -97,6 +92,14 @@ export default function MealNoticeForm() {
   const previewTitle = useMemo(
     () => `${academicYear} ${month} 학교급식 안내`,
     [academicYear, month]
+  );
+  const mealPeriodText = useMemo(
+    () => formatDateRange(mealPeriod.start, mealPeriod.end),
+    [mealPeriod.end, mealPeriod.start]
+  );
+  const paymentPeriodText = useMemo(
+    () => formatDateRange(paymentPeriod.start, paymentPeriod.end),
+    [paymentPeriod.end, paymentPeriod.start]
   );
 
   const schoolName = profile?.schoolName || "학교명";
@@ -216,8 +219,8 @@ export default function MealNoticeForm() {
           month,
           title: previewTitle,
           greeting,
-          mealPeriod,
-          paymentPeriod,
+          mealPeriod: mealPeriodText,
+          paymentPeriod: paymentPeriodText,
           paymentMethod,
           issueDate,
           schoolName,
@@ -266,8 +269,8 @@ export default function MealNoticeForm() {
             month,
             title: previewTitle,
             greeting,
-            mealPeriod,
-            paymentPeriod,
+            mealPeriod: mealPeriodText,
+            paymentPeriod: paymentPeriodText,
             paymentMethod,
             issueDate,
             schoolName,
@@ -323,8 +326,8 @@ export default function MealNoticeForm() {
     setAcademicYear("2025학년도");
     setMonth("4월");
     setGreeting("");
-    setMealPeriod("");
-    setPaymentPeriod("");
+    setMealPeriod({ start: "", end: "" });
+    setPaymentPeriod({ start: "", end: "" });
     setPaymentDetails([createPaymentRow()]);
     setPaymentMethod("");
     setNotices([createNoticeItem()]);
@@ -338,8 +341,8 @@ export default function MealNoticeForm() {
     year: academicYear,
     month,
     greeting,
-    mealPeriod,
-    paymentPeriod,
+    mealPeriod: mealPeriodText,
+    paymentPeriod: paymentPeriodText,
     paymentMethod,
     paymentDetails,
     notices,
@@ -415,9 +418,6 @@ export default function MealNoticeForm() {
                   </Select>
                 </div>
               </div>
-              <div className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
-                📄 미리보기: <strong className="text-foreground">{previewTitle}</strong>
-              </div>
             </section>
 
             <div className="h-px bg-border" />
@@ -456,22 +456,23 @@ export default function MealNoticeForm() {
             <div className="h-px bg-border" />
 
             <section className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <span className="text-sm font-semibold text-foreground">급식 기간</span>
-                <Input
-                  placeholder="예: 2025. 4. 1.(화) ~ 4. 30.(수)"
-                  value={mealPeriod}
-                  onChange={(event) => setMealPeriod(event.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <span className="text-sm font-semibold text-foreground">급식비 납부기간</span>
-                <Input
-                  placeholder="예: 2025. 4. 1.(화) ~ 4. 7.(월)"
-                  value={paymentPeriod}
-                  onChange={(event) => setPaymentPeriod(event.target.value)}
-                />
-              </div>
+              <DateRangePicker
+                label="급식 기간"
+                value={mealPeriod}
+                onChange={setMealPeriod}
+                showDaysBadge
+                showSchoolDays={false}
+                autoTagLabel="자동 계산"
+                startAriaLabel="급식 기간 시작 날짜"
+                endAriaLabel="급식 기간 종료 날짜"
+              />
+              <DateRangePicker
+                label="급식비 납부기간"
+                value={paymentPeriod}
+                onChange={setPaymentPeriod}
+                startAriaLabel="급식비 납부기간 시작 날짜"
+                endAriaLabel="급식비 납부기간 종료 날짜"
+              />
             </section>
 
             <div className="h-px bg-border" />
@@ -666,10 +667,6 @@ export default function MealNoticeForm() {
             </section>
 
             <div className="flex flex-col gap-3 pt-4 sm:flex-row">
-              <Button type="button" variant="outline" onClick={() => setIsPreviewOpen(true)}>
-                <Eye className="w-4 h-4 mr-2" />
-                미리보기
-              </Button>
               <Button
                 type="button"
                 className="flex-1"
@@ -695,24 +692,6 @@ export default function MealNoticeForm() {
           </CardContent>
         </Card>
       </main>
-
-      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-5xl p-0">
-          <DialogHeader className="border-b px-6 py-4">
-            <DialogTitle>📄 문서 미리보기</DialogTitle>
-          </DialogHeader>
-          <div
-            className="max-h-[80vh] overflow-y-auto bg-muted/40 p-6"
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "flex-start",
-            }}
-          >
-            <MealNoticePreview {...previewProps} />
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* PDF 출력용 숨김 영역 */}
       <div

@@ -7,6 +7,7 @@ export type TeacherMateDocumentType =
   | "방과후학교 운영계획서"
   | "초등돌봄교실 운영계획서"
   | "현장체험학습 운영계획서"
+  | "교외체험학습 신청서"
   | "학교 안전교육 계획서"
   | "학교폭력 예방 교육 계획서"
   | "교내 행사 운영계획서"
@@ -37,6 +38,7 @@ export const DOCUMENT_TYPE_TO_RAG_CATEGORY_IDS: Record<
   "방과후학교 운영계획서": ["curriculum", "work-plan"],
   "초등돌봄교실 운영계획서": ["work-plan", "home-letter"],
   "현장체험학습 운영계획서": ["field-trip"],
+  "교외체험학습 신청서": ["field-trip", "home-letter"],
   "학교 안전교육 계획서": ["safety-prevention", "health-safety"],
   "학교폭력 예방 교육 계획서": ["violence-prevent"],
   "교내 행사 운영계획서": ["event-notice", "work-plan"],
