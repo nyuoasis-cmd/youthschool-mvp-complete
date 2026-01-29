@@ -170,12 +170,62 @@ export default function SuneungNoticeForm() {
     },
     onSuccess: (data) => {
       setGeneratingField(null);
-      const generatedContent = String(data.generatedContent || "").trim();
+      const generatedContent = data.generatedContent;
 
       if (data.fieldName === "greeting") {
-        setGreeting(generatedContent);
+        setGreeting(String(generatedContent || "").trim());
       } else if (data.fieldName === "cautions") {
-        setCautions(generatedContent);
+        setCautions(String(generatedContent || "").trim());
+      } else if (data.fieldName === "schedules") {
+        try {
+          const parsed = typeof generatedContent === "string" ? JSON.parse(generatedContent) : generatedContent;
+          if (Array.isArray(parsed)) {
+            setSchedules(parsed.map((item: { period?: string; subject?: string; time?: string; questions?: string; note?: string }) => ({
+              id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+              period: item.period || "",
+              subject: item.subject || "",
+              time: item.time || "",
+              questions: item.questions || "",
+              note: item.note || "",
+            })));
+          }
+        } catch {
+          console.error("Failed to parse schedules JSON");
+        }
+      } else if (data.fieldName === "supplies") {
+        try {
+          const parsed = typeof generatedContent === "string" ? JSON.parse(generatedContent) : generatedContent;
+          if (Array.isArray(parsed)) {
+            setSupplies(parsed.map((content: string) => ({
+              id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+              content: String(content),
+            })));
+          }
+        } catch {
+          console.error("Failed to parse supplies JSON");
+        }
+      } else if (data.fieldName === "entryTime") {
+        try {
+          const parsed = typeof generatedContent === "string" ? JSON.parse(generatedContent) : generatedContent;
+          if (parsed && typeof parsed === "object") {
+            setEntryTimeFirst(parsed.entryTimeFirst || "");
+            setEntryTimeOthers(parsed.entryTimeOthers || "");
+          }
+        } catch {
+          console.error("Failed to parse entryTime JSON");
+        }
+      } else if (data.fieldName === "additionalNotes") {
+        try {
+          const parsed = typeof generatedContent === "string" ? JSON.parse(generatedContent) : generatedContent;
+          if (Array.isArray(parsed)) {
+            setAdditionalNotes(parsed.map((content: string) => ({
+              id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+              content: String(content),
+            })));
+          }
+        } catch {
+          console.error("Failed to parse additionalNotes JSON");
+        }
       }
 
       toast({
@@ -198,10 +248,14 @@ export default function SuneungNoticeForm() {
     mutationFn: async () => {
       const fields = [
         { fieldName: "greeting", fieldLabel: "인사말" },
+        { fieldName: "schedules", fieldLabel: "시험 시간표" },
+        { fieldName: "supplies", fieldLabel: "준비물" },
         { fieldName: "cautions", fieldLabel: "유의사항" },
+        { fieldName: "entryTime", fieldLabel: "입실 시간" },
+        { fieldName: "additionalNotes", fieldLabel: "추가 안내" },
       ];
 
-      const results: Array<{ fieldName: string; generatedContent: string }> = [];
+      const results: Array<{ fieldName: string; generatedContent: unknown }> = [];
 
       for (const field of fields) {
         const response = await apiRequest("POST", "/api/documents/generate-field", {
@@ -223,7 +277,7 @@ export default function SuneungNoticeForm() {
 
         results.push({
           fieldName: data.fieldName || field.fieldName,
-          generatedContent: String(data.generatedContent || "").trim(),
+          generatedContent: data.generatedContent,
         });
       }
 
@@ -235,9 +289,60 @@ export default function SuneungNoticeForm() {
     onSuccess: (results) => {
       results.forEach(({ fieldName, generatedContent }) => {
         if (fieldName === "greeting") {
-          setGreeting(generatedContent);
+          setGreeting(String(generatedContent || "").trim());
         } else if (fieldName === "cautions") {
-          setCautions(generatedContent);
+          setCautions(String(generatedContent || "").trim());
+        } else if (fieldName === "schedules") {
+          try {
+            const parsed = typeof generatedContent === "string" ? JSON.parse(generatedContent) : generatedContent;
+            if (Array.isArray(parsed)) {
+              setSchedules(parsed.map((item: { period?: string; subject?: string; time?: string; questions?: string; note?: string }) => ({
+                id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                period: item.period || "",
+                subject: item.subject || "",
+                time: item.time || "",
+                questions: item.questions || "",
+                note: item.note || "",
+              })));
+            }
+          } catch {
+            console.error("Failed to parse schedules JSON");
+          }
+        } else if (fieldName === "supplies") {
+          try {
+            const parsed = typeof generatedContent === "string" ? JSON.parse(generatedContent) : generatedContent;
+            if (Array.isArray(parsed)) {
+              setSupplies(parsed.map((content: string) => ({
+                id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                content: String(content),
+              })));
+            }
+          } catch {
+            console.error("Failed to parse supplies JSON");
+          }
+        } else if (fieldName === "entryTime") {
+          try {
+            const parsed = typeof generatedContent === "string" ? JSON.parse(generatedContent) : generatedContent;
+            if (parsed && typeof parsed === "object") {
+              const entryData = parsed as { entryTimeFirst?: string; entryTimeOthers?: string };
+              setEntryTimeFirst(entryData.entryTimeFirst || "");
+              setEntryTimeOthers(entryData.entryTimeOthers || "");
+            }
+          } catch {
+            console.error("Failed to parse entryTime JSON");
+          }
+        } else if (fieldName === "additionalNotes") {
+          try {
+            const parsed = typeof generatedContent === "string" ? JSON.parse(generatedContent) : generatedContent;
+            if (Array.isArray(parsed)) {
+              setAdditionalNotes(parsed.map((content: string) => ({
+                id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                content: String(content),
+              })));
+            }
+          } catch {
+            console.error("Failed to parse additionalNotes JSON");
+          }
         }
       });
 
@@ -417,10 +522,31 @@ export default function SuneungNoticeForm() {
           {/* 섹션 3: 시험 시간표 */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">3</span>
-                시험 시간표
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">3</span>
+                  시험 시간표
+                </CardTitle>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => generateFieldMutation.mutate({ fieldName: "schedules", fieldLabel: "시험 시간표" })}
+                  disabled={generatingField === "schedules" || isGeneratingAll}
+                >
+                  {generatingField === "schedules" ? (
+                    <>
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      생성 중...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="w-3 h-3 mr-1" />
+                      AI 작성
+                    </>
+                  )}
+                </Button>
+              </div>
               <CardDescription>교시별 시험 시간과 영역을 입력하세요.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -505,10 +631,31 @@ export default function SuneungNoticeForm() {
           {/* 섹션 4: 준비물 안내 */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">4</span>
-                준비물 안내
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">4</span>
+                  준비물 안내
+                </CardTitle>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => generateFieldMutation.mutate({ fieldName: "supplies", fieldLabel: "준비물" })}
+                  disabled={generatingField === "supplies" || isGeneratingAll}
+                >
+                  {generatingField === "supplies" ? (
+                    <>
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      생성 중...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="w-3 h-3 mr-1" />
+                      AI 작성
+                    </>
+                  )}
+                </Button>
+              </div>
               <CardDescription>수험생이 준비해야 할 물품을 안내합니다.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -584,10 +731,31 @@ export default function SuneungNoticeForm() {
           {/* 섹션 6: 입실 시간 */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">6</span>
-                입실 시간
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">6</span>
+                  입실 시간
+                </CardTitle>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => generateFieldMutation.mutate({ fieldName: "entryTime", fieldLabel: "입실 시간" })}
+                  disabled={generatingField === "entryTime" || isGeneratingAll}
+                >
+                  {generatingField === "entryTime" ? (
+                    <>
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      생성 중...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="w-3 h-3 mr-1" />
+                      AI 작성
+                    </>
+                  )}
+                </Button>
+              </div>
               <CardDescription>교시별 입실 시간을 안내합니다.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -615,10 +783,31 @@ export default function SuneungNoticeForm() {
           {/* 섹션 7: 추가 안내 */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">7</span>
-                추가 안내 항목
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">7</span>
+                  추가 안내 항목
+                </CardTitle>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => generateFieldMutation.mutate({ fieldName: "additionalNotes", fieldLabel: "추가 안내" })}
+                  disabled={generatingField === "additionalNotes" || isGeneratingAll}
+                >
+                  {generatingField === "additionalNotes" ? (
+                    <>
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      생성 중...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="w-3 h-3 mr-1" />
+                      AI 작성
+                    </>
+                  )}
+                </Button>
+              </div>
               <CardDescription>기타 안내사항을 추가하세요.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
