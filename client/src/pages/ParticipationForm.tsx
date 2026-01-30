@@ -388,14 +388,14 @@ export default function ParticipationForm() {
         sections={GUIDE_SECTIONS}
       />
 
-      <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-40 h-[57px]">
-        <div
-          className="max-w-4xl mx-auto px-6 py-3 transition-all duration-300"
-          style={{
-            marginLeft: leftSidebarOpen ? "256px" : "0",
-            marginRight: rightSidebarOpen ? "360px" : "0",
-          }}
-        >
+      <header
+        className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-40 transition-all duration-300"
+        style={{
+          marginLeft: leftSidebarOpen ? "256px" : "0",
+          marginRight: rightSidebarOpen ? "360px" : "0",
+        }}
+      >
+        <div className="max-w-4xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" asChild>
@@ -408,19 +408,20 @@ export default function ParticipationForm() {
                 <p className="text-sm text-muted-foreground">필요한 정보를 입력하면 AI가 항목을 작성합니다</p>
               </div>
             </div>
-            <Button variant="outline">PDF 다운로드</Button>
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">PDF 다운로드</Button>
           </div>
         </div>
       </header>
 
       <main
-        className="max-w-4xl mx-auto px-6 py-8 transition-all duration-300"
+        className="px-6 py-8 transition-all duration-300"
         style={{
           marginLeft: leftSidebarOpen ? "256px" : "0",
           marginRight: rightSidebarOpen ? "360px" : "0",
         }}
       >
-        <Card>
+        <div className="max-w-4xl mx-auto">
+          <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-primary" />
@@ -806,7 +807,8 @@ export default function ParticipationForm() {
               </Button>
             </div>
           </CardContent>
-        </Card>
+          </Card>
+        </div>
       </main>
 
       {/* 미리보기 모달 */}
