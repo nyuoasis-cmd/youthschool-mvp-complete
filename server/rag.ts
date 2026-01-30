@@ -1,13 +1,13 @@
-import { readFile } from "fs/promises";
+import { readFile, readdir } from "fs/promises";
 import path from "path";
 import {
   type RagCategoriesConfig,
   type RagDocumentsMetadata,
   type RagDocument,
-  buildRagRawUrl,
   RAG_LOCAL_CATEGORIES_PATH,
   RAG_LOCAL_METADATA_PATH,
   RAG_GITHUB,
+  RAG_LOCAL_NEWSLETTER_PATH,
 } from "@shared/rag-config";
 import { getRagCategoryIdsForDocumentType } from "@shared/category-mapping";
 
@@ -25,6 +25,41 @@ const DEFAULT_REFERENCE_LIMIT = 3;
 
 let cachedCategories: RagCategoriesConfig | null = null;
 let cachedDocuments: RagDocumentsMetadata | null = null;
+let cachedFileIndex: Map<string, string> | null = null; // filename -> full path
+
+// Build index of all .txt files in _text directory for fast lookup
+async function buildFileIndex(): Promise<Map<string, string>> {
+  if (cachedFileIndex) return cachedFileIndex;
+
+  const index = new Map<string, string>();
+  const textDir = path.join(RAG_LOCAL_NEWSLETTER_PATH, "documents/_text");
+
+  async function scanDir(dir: string) {
+    try {
+      const entries = await readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          await scanDir(fullPath);
+        } else if (entry.isFile() && entry.name.endsWith(".txt")) {
+          // Store both with and without extension for flexible matching
+          const baseName = entry.name.replace(/\.txt$/, "");
+          index.set(entry.name, fullPath);
+          index.set(baseName, fullPath);
+          // Also store normalized name (no extension, lowercase)
+          index.set(baseName.toLowerCase(), fullPath);
+        }
+      }
+    } catch {
+      // Directory scan error, skip
+    }
+  }
+
+  await scanDir(textDir);
+  cachedFileIndex = index;
+  console.log(`[RAG] File index built: ${index.size} entries`);
+  return index;
+}
 
 const stopwords = new Set([
   "및",
@@ -120,17 +155,33 @@ function looksBinary(text: string) {
 }
 
 async function fetchDocumentContent(doc: RagDocument, categories: RagCategoriesConfig | null) {
-  const relativePath = resolveDocumentPath(doc, categories);
-  if (!relativePath) return "";
-  try {
-    const response = await fetch(buildRagRawUrl(relativePath));
-    if (!response.ok) return "";
-    const text = await response.text();
-    if (looksBinary(text)) return "";
-    return normalizeText(text);
-  } catch {
-    return "";
+  const fileIndex = await buildFileIndex();
+
+  // Try to find the file by filename (with .txt extension or converted)
+  const filenameBase = doc.filename.replace(/\.(hwp|hwpx|pdf|doc|docx)$/i, "");
+  const possibleNames = [
+    filenameBase + ".txt",
+    filenameBase,
+    filenameBase.toLowerCase(),
+    doc.filename,
+  ];
+
+  for (const name of possibleNames) {
+    const filePath = fileIndex.get(name);
+    if (filePath) {
+      try {
+        const text = await readFile(filePath, "utf-8");
+        if (looksBinary(text)) continue;
+        console.log(`[RAG] Loaded document: ${doc.filename} from ${path.basename(filePath)}`);
+        return normalizeText(text);
+      } catch {
+        // File read error, try next
+      }
+    }
   }
+
+  console.log(`[RAG] Document not found: ${doc.filename}`);
+  return "";
 }
 
 function buildSnippet(text: string) {
