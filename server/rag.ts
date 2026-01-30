@@ -6,8 +6,7 @@ import {
   type RagDocument,
   RAG_LOCAL_CATEGORIES_PATH,
   RAG_LOCAL_METADATA_PATH,
-  RAG_GITHUB,
-  RAG_LOCAL_NEWSLETTER_PATH,
+  RAG_LOCAL_DOCUMENTS_PATH,
 } from "@shared/rag-config";
 import { getRagCategoryIdsForDocumentType } from "@shared/category-mapping";
 
@@ -27,12 +26,12 @@ let cachedCategories: RagCategoriesConfig | null = null;
 let cachedDocuments: RagDocumentsMetadata | null = null;
 let cachedFileIndex: Map<string, string> | null = null; // filename -> full path
 
-// Build index of all .txt files in _text directory for fast lookup
+// Build index of all .txt files in documents directory for fast lookup
 async function buildFileIndex(): Promise<Map<string, string>> {
   if (cachedFileIndex) return cachedFileIndex;
 
   const index = new Map<string, string>();
-  const textDir = path.join(RAG_LOCAL_NEWSLETTER_PATH, "documents/_text");
+  const textDir = path.resolve(RAG_LOCAL_DOCUMENTS_PATH);
 
   async function scanDir(dir: string) {
     try {

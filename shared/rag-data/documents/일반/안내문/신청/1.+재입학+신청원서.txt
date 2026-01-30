@@ -1,0 +1,10 @@
+---
+title: 1.+재입학+신청원서
+school: 
+date: 
+category: general-notice
+originalFile: 1.+재입학+신청원서.hwpx
+extractedAt: 2026-01-28T07:08:46.520Z
+---
+
+제출서류 안내 : 1. 주민등록 등본 2. 재입학 신청 사유서 및 학업계획서

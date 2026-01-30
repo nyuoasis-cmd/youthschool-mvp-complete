@@ -1,0 +1,10 @@
+---
+title: 학교홈페이지_회원가입_안내
+school: 
+date: 
+category: general-notice
+originalFile: 학교홈페이지_회원가입_안내.hwp
+extractedAt: 2026-01-28T07:11:11.747Z
+---
+
+Error: not an OLE2 structured storage file

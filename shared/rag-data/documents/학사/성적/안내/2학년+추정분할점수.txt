@@ -1,0 +1,10 @@
+---
+title: 2학년+추정분할점수
+school: 
+date: 
+category: grade-notice
+originalFile: 2학년+추정분할점수.hwp
+extractedAt: 2026-01-28T07:10:03.136Z
+---
+
+Error: not an OLE2 structured storage file

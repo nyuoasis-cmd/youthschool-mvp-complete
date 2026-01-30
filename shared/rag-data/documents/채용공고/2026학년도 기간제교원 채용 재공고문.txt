@@ -1,0 +1,1 @@
+[텍스트 추출 실패: [Errno 2] No such file or directory: 'pdftotext']

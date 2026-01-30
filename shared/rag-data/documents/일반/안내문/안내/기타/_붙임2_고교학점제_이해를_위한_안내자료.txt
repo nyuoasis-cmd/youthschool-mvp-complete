@@ -1,0 +1,10 @@
+---
+title: _붙임2_고교학점제_이해를_위한_안내자료
+school: 
+date: 
+category: general-notice
+originalFile: _붙임2_고교학점제_이해를_위한_안내자료.hwpx
+extractedAt: 2026-01-28T07:10:20.808Z
+---
+
+Error: File is not a zip file

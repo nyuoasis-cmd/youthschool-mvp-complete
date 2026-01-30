@@ -1,0 +1,10 @@
+---
+title: 예비_중학교_1학년_신입생_입학준비금_사전_홍보_안내문
+school: 
+date: 
+category: admission
+originalFile: 예비_중학교_1학년_신입생_입학준비금_사전_홍보_안내문.hwp
+extractedAt: 2026-01-28T07:03:15.654Z
+---
+
+Error: not an OLE2 structured storage file

@@ -13,8 +13,8 @@ export const RAG_LOCAL_DATA_DIR = "shared/rag-data";
 export const RAG_LOCAL_METADATA_PATH = `${RAG_LOCAL_DATA_DIR}/documents.json`;
 export const RAG_LOCAL_CATEGORIES_PATH = `${RAG_LOCAL_DATA_DIR}/categories.json`;
 
-// Local newsletter repository path for direct file access (bypasses GitHub authentication)
-export const RAG_LOCAL_NEWSLETTER_PATH = "/home/claude/newsletter";
+// Local documents path - embedded in the project for fast access and deployment independence
+export const RAG_LOCAL_DOCUMENTS_PATH = "shared/rag-data/documents";
 
 export const buildRagRawUrl = (relativePath: string) =>
   `${RAG_RAW_BASE_URL}/${relativePath.replace(/^\/+/, "")}`;

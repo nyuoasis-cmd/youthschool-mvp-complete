@@ -1,0 +1,10 @@
+---
+title: 학교폭력_예방_일기예보_프로젝트_12월_가정통신문.hwpx_(다운로드_8회)
+school: 
+date: 
+category: school-violence
+originalFile: 학교폭력_예방_일기예보_프로젝트_12월_가정통신문.hwpx_(다운로드_8회).hwp
+extractedAt: 2026-01-28T07:03:53.215Z
+---
+
+Error: not an OLE2 structured storage file

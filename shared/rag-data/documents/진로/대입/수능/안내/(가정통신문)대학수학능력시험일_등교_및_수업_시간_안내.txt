@@ -1,0 +1,10 @@
+---
+title: (가정통신문)대학수학능력시험일_등교_및_수업_시간_안내
+school: 
+date: 
+category: college-exam
+originalFile: (가정통신문)대학수학능력시험일_등교_및_수업_시간_안내.hwp
+extractedAt: 2026-01-28T06:58:19.096Z
+---
+
+Error: not an OLE2 structured storage file
