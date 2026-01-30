@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Sparkles, Loader2, Wand2, Eye, Plus, Trash2 } from "lucide-react";
 import { Link } from "wouter";
@@ -23,6 +23,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import {
+  FormSectionSidebar,
+  FormGuideSidebar,
+  type FormSection,
+  type GuideSection,
+} from "@/components/form-sidebar";
 
 type TeamMember = {
   id: string;
@@ -50,11 +56,98 @@ const createTeamMember = (): TeamMember => ({
   contact: "",
 });
 
+// 섹션 정의
+const FORM_SECTIONS: FormSection[] = [
+  { id: "section-program", number: 1, title: "프로그램 정보" },
+  { id: "section-applicant", number: 2, title: "신청자 정보" },
+  { id: "section-guardian", number: 3, title: "보호자 정보" },
+  { id: "section-motivation", number: 4, title: "참가 동기" },
+  { id: "section-notices", number: 5, title: "유의사항" },
+  { id: "section-consent", number: 6, title: "동의사항" },
+  { id: "section-signature", number: 7, title: "서명" },
+];
+
+// 작성 가이드 정의
+const GUIDE_SECTIONS: GuideSection[] = [
+  {
+    number: 1,
+    title: "프로그램 정보",
+    items: [
+      { label: "프로그램명", description: "대회, 캠프, 체험학습 이름" },
+      { label: "프로그램 유형", description: "공모전/캠프/체험학습 등 선택" },
+      { label: "주최/주관", description: "주최 기관명 (예: 송파구청)" },
+      { label: "참가 부문", description: "해당되는 경우 부문/분야 기재" },
+    ],
+  },
+  {
+    number: 2,
+    title: "신청자 정보",
+    items: [
+      { label: "성명", description: "참가 학생 이름" },
+      { label: "학교/학년/반", description: "소속 학교 및 학적 정보" },
+      { label: "연락처", description: "참가자 휴대폰 번호" },
+    ],
+    tip: { type: "warning", text: "팀 참가 시 대표학생 정보 입력 후 팀원 추가" },
+  },
+  {
+    number: 3,
+    title: "보호자 정보",
+    subtitle: "(선택)",
+    items: [
+      { label: "보호자 성명", description: "법정대리인 이름" },
+      { label: "관계", description: "학생과의 관계 (부, 모 등)" },
+      { label: "연락처", description: "보호자 휴대폰 번호" },
+    ],
+    tip: { type: "info", text: "미성년자 참가 시 보호자 정보 필수" },
+  },
+  {
+    number: 4,
+    title: "참가 동기",
+    items: [
+      { label: "참가 동기", description: "프로그램 참가 이유 작성" },
+    ],
+    tip: { type: "info", text: "AI 생성 버튼으로 참가 동기 자동 작성 가능" },
+  },
+  {
+    number: 5,
+    title: "유의사항",
+    items: [
+      { label: "유의사항", description: "참가 시 주의사항 및 안내문" },
+    ],
+    tip: { type: "info", text: "AI 생성 버튼으로 유의사항 자동 작성 가능" },
+  },
+  {
+    number: 6,
+    title: "동의사항",
+    items: [
+      { label: "개인정보 수집", description: "참가자 관리, 입상 시 정보 제공 목적" },
+      { label: "저작권 활용", description: "공모전 출품작 활용 동의 (공모전만)" },
+    ],
+    tip: { type: "info", text: "공모전 유형 선택 시 저작권 동의 항목 표시" },
+  },
+  {
+    number: 7,
+    title: "서명",
+    items: [
+      { label: "신청 날짜", description: "신청서 작성 날짜" },
+      { label: "수신자", description: "\"○○구청장 귀하\" 형식으로 입력" },
+    ],
+  },
+];
+
 export default function ParticipationForm() {
   const { toast } = useToast();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [generatingField, setGeneratingField] = useState<string | null>(null);
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+
+  // 사이드바 상태 (기본: 닫힘)
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<string>("section-program");
+
+  // 섹션 refs
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
   // 폼 상태
   const [programName, setProgramName] = useState("");
@@ -260,10 +353,49 @@ export default function ParticipationForm() {
     );
   };
 
+  // 섹션으로 스크롤
+  const scrollToSection = useCallback((sectionId: string) => {
+    const el = sectionRefs.current[sectionId];
+    if (el) {
+      const y = el.getBoundingClientRect().top + window.pageYOffset - 100;
+      window.scrollTo({ top: y, behavior: "smooth" });
+      setActiveSection(sectionId);
+    }
+  }, []);
+
+  // ref 설정 헬퍼
+  const setSectionRef = useCallback((id: string) => (el: HTMLElement | null) => {
+    sectionRefs.current[id] = el;
+  }, []);
+
   return (
     <div className="min-h-screen bg-background relative">
-      <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50 h-[73px]">
-        <div className="max-w-4xl mx-auto px-6 py-4">
+      {/* 좌측 사이드바: 섹션 목록 */}
+      <FormSectionSidebar
+        isOpen={leftSidebarOpen}
+        onToggle={() => setLeftSidebarOpen(!leftSidebarOpen)}
+        documentTitle="참가 신청서"
+        sections={FORM_SECTIONS}
+        activeSection={activeSection}
+        onSectionClick={scrollToSection}
+      />
+
+      {/* 우측 사이드바: 작성 가이드 */}
+      <FormGuideSidebar
+        isOpen={rightSidebarOpen}
+        onToggle={() => setRightSidebarOpen(!rightSidebarOpen)}
+        title="작성 가이드"
+        sections={GUIDE_SECTIONS}
+      />
+
+      <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-40 h-[57px]">
+        <div
+          className="max-w-4xl mx-auto px-6 py-3 transition-all duration-300"
+          style={{
+            marginLeft: leftSidebarOpen ? "256px" : "0",
+            marginRight: rightSidebarOpen ? "360px" : "0",
+          }}
+        >
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" asChild>
@@ -281,7 +413,13 @@ export default function ParticipationForm() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-8">
+      <main
+        className="max-w-4xl mx-auto px-6 py-8 transition-all duration-300"
+        style={{
+          marginLeft: leftSidebarOpen ? "256px" : "0",
+          marginRight: rightSidebarOpen ? "360px" : "0",
+        }}
+      >
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -293,7 +431,7 @@ export default function ParticipationForm() {
           <CardContent className="space-y-6">
 
             {/* 프로그램 정보 */}
-            <section className="space-y-3">
+            <section ref={setSectionRef("section-program")} className="space-y-3">
               <h2 className="text-sm font-semibold text-foreground">프로그램 정보</h2>
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -341,7 +479,7 @@ export default function ParticipationForm() {
             <div className="h-px bg-border" />
 
             {/* 신청자 정보 */}
-            <section className="space-y-3">
+            <section ref={setSectionRef("section-applicant")} className="space-y-3">
               <h2 className="text-sm font-semibold text-foreground">신청자 정보</h2>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
@@ -450,7 +588,7 @@ export default function ParticipationForm() {
             <div className="h-px bg-border" />
 
             {/* 보호자 정보 */}
-            <section className="space-y-3">
+            <section ref={setSectionRef("section-guardian")} className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-foreground">보호자 정보</h2>
                 <div className="flex items-center gap-2">
@@ -495,7 +633,7 @@ export default function ParticipationForm() {
             <div className="h-px bg-border" />
 
             {/* 참가 동기 */}
-            <section className="space-y-3">
+            <section ref={setSectionRef("section-motivation")} className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <h2 className="text-sm font-semibold text-foreground">참가 동기</h2>
@@ -543,7 +681,7 @@ export default function ParticipationForm() {
             <div className="h-px bg-border" />
 
             {/* 유의사항 */}
-            <section className="space-y-3">
+            <section ref={setSectionRef("section-notices")} className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-foreground">유의사항</h2>
                 <Button
@@ -577,7 +715,7 @@ export default function ParticipationForm() {
             <div className="h-px bg-border" />
 
             {/* 동의사항 */}
-            <section className="space-y-3">
+            <section ref={setSectionRef("section-consent")} className="space-y-3">
               <h2 className="text-sm font-semibold text-foreground">동의사항</h2>
               <div className="space-y-4">
                 <div className="rounded-lg bg-muted/40 p-4 space-y-3">
@@ -620,7 +758,7 @@ export default function ParticipationForm() {
             <div className="h-px bg-border" />
 
             {/* 서명 */}
-            <section className="grid gap-4 md:grid-cols-2">
+            <section ref={setSectionRef("section-signature")} className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <span className="text-sm font-semibold text-foreground">신청 날짜</span>
                 <Input
