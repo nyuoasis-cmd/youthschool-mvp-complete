@@ -1068,6 +1068,50 @@ ${contextDescription}
 - 2-3문장으로 간결하게
 
 작품 설명만 출력:`;
+        } else if (fieldName === "allFields") {
+          // 전체 필드 생성 - JSON 형태로 반환
+          const programType = (context as Record<string, string>)?.programType || "contest";
+          const programTypeLabels: Record<string, string> = {
+            contest: "공모전/대회",
+            camp: "캠프/교실",
+            experience: "체험학습/견학",
+            education: "교육/연수",
+            other: "기타"
+          };
+
+          prompt = `[역할] 학교 참가 신청서 작성 도우미
+
+[작업] 아래 프로그램 유형에 맞는 참가 신청서 예시 데이터를 JSON으로 생성하세요.
+
+[프로그램 유형] ${programTypeLabels[programType] || programType}
+
+[생성 규칙]
+- 실제 학교에서 사용할 법한 자연스러운 예시 데이터 생성
+- 프로그램 유형에 맞는 프로그램명과 주최기관 생성
+- 학생 정보는 가상의 예시로 생성
+- 참가 동기는 2-3문장으로 진솔하게
+- 유의사항은 프로그램 유형에 맞게 3-4개 항목 (• 로 시작)
+
+[출력 형식] 아래 JSON 형식으로만 출력 (다른 텍스트 없이):
+{
+  "programName": "프로그램명",
+  "organizer": "주최기관명",
+  "participationCategory": "참가 부문",
+  "applicantName": "학생 이름",
+  "school": "학교명",
+  "grade": "학년 숫자만",
+  "classNumber": "반 숫자만",
+  "studentNumber": "번호 숫자만",
+  "contact": "010-0000-0000 형식",
+  "guardianName": "보호자 이름",
+  "guardianRelationship": "부 또는 모",
+  "guardianContact": "010-0000-0000 형식",
+  "motivationContent": "참가 동기 내용",
+  "notices": "• 유의사항1\\n• 유의사항2\\n• 유의사항3",
+  "recipient": "수신자 귀하"
+}
+
+JSON만 출력:`;
         }
       }
 

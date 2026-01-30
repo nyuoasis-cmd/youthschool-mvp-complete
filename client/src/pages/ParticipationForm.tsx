@@ -157,52 +157,54 @@ export default function ParticipationForm() {
 
   const generateAllMutation = useMutation({
     mutationFn: async () => {
-      const fields = [
-        ...(motivationEnabled ? [{ fieldName: "motivationContent", fieldLabel: "참가 동기" }] : []),
-        { fieldName: "notices", fieldLabel: "유의사항" },
-      ];
+      const response = await apiRequest("POST", "/api/documents/generate-field", {
+        documentType: "참가 신청서",
+        fieldName: "allFields",
+        fieldLabel: "전체 필드",
+        context: getFormContext(),
+      });
 
-      const results: Array<{ fieldName: string; generatedContent: string }> = [];
-
-      for (const field of fields) {
-        const response = await apiRequest("POST", "/api/documents/generate-field", {
-          documentType: "참가 신청서",
-          fieldName: field.fieldName,
-          fieldLabel: field.fieldLabel,
-          context: getFormContext(),
-        });
-
-        const data = await response.json();
-        if (data.error) {
-          throw new Error(data.error);
-        }
-
-        results.push({
-          fieldName: data.fieldName || field.fieldName,
-          generatedContent: String(data.generatedContent || "").trim(),
-        });
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
       }
 
-      return results;
+      // JSON 파싱
+      const generatedContent = String(data.generatedContent || "").trim();
+      // JSON 블록 추출 (```json ... ``` 또는 순수 JSON)
+      let jsonStr = generatedContent;
+      const jsonMatch = generatedContent.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        jsonStr = jsonMatch[1].trim();
+      }
+
+      const parsed = JSON.parse(jsonStr);
+      return parsed;
     },
     onMutate: () => {
       setIsGeneratingAll(true);
     },
-    onSuccess: (results) => {
-      let hasError = false;
-      results.forEach(({ fieldName, generatedContent }) => {
-        const applied = applyGeneratedField(fieldName, generatedContent);
-        if (!applied) {
-          hasError = true;
-        }
-      });
+    onSuccess: (data: Record<string, string>) => {
+      // 모든 필드 적용
+      if (data.programName) setProgramName(data.programName);
+      if (data.organizer) setOrganizer(data.organizer);
+      if (data.participationCategory) setParticipationCategory(data.participationCategory);
+      if (data.applicantName) setApplicantName(data.applicantName);
+      if (data.school) setSchool(data.school);
+      if (data.grade) setGrade(data.grade);
+      if (data.classNumber) setClassNumber(data.classNumber);
+      if (data.studentNumber) setStudentNumber(data.studentNumber);
+      if (data.contact) setContact(data.contact);
+      if (data.guardianName) setGuardianName(data.guardianName);
+      if (data.guardianRelationship) setGuardianRelationship(data.guardianRelationship);
+      if (data.guardianContact) setGuardianContact(data.guardianContact);
+      if (data.motivationContent) setMotivationContent(data.motivationContent);
+      if (data.notices) setNotices(data.notices);
+      if (data.recipient) setRecipient(data.recipient);
 
       toast({
-        title: hasError ? "일부 항목 확인 필요" : "AI 전부 생성 완료",
-        description: hasError
-          ? "일부 항목의 결과 형식을 확인해주세요."
-          : "모든 항목이 생성되었습니다. 필요시 수정해주세요.",
-        variant: hasError ? "destructive" : "default",
+        title: "AI 전부 생성 완료",
+        description: "모든 항목이 생성되었습니다. 필요시 수정해주세요.",
       });
     },
     onError: (error: Error) => {
