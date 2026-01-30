@@ -12,6 +12,7 @@ export type TeacherMateDocumentType =
   | "학교폭력 예방 교육 계획서"
   | "교내 행사 운영계획서"
   | "수능/모의평가 안내"
+  | "참가 신청서"
   | "HWP 양식으로 작성";
 
 export const DOCUMENT_TYPE_TO_RAG_CATEGORY_IDS: Record<
@@ -44,6 +45,7 @@ export const DOCUMENT_TYPE_TO_RAG_CATEGORY_IDS: Record<
   "학교폭력 예방 교육 계획서": ["violence-prevent"],
   "교내 행사 운영계획서": ["event-notice", "work-plan"],
   "수능/모의평가 안내": ["college-exam", "exam-plan", "home-letter", "timetable"],
+  "참가 신청서": ["field-trip", "event-notice", "home-letter", "volunteer"],
   "HWP 양식으로 작성": [],
 };
 

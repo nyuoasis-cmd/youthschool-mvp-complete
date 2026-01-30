@@ -163,6 +163,16 @@ const documentTypes = [
     levels: ["초등학교", "중학교", "고등학교"],
   },
   {
+    id: "participation-form",
+    title: "참가 신청서",
+    description: "공모전, 캠프, 체험학습 등 각종 프로그램 참가 신청서를 AI로 작성합니다.",
+    icon: ClipboardList,
+    href: "/create/participation-form",
+    examples: ["공모전 참가", "캠프 신청", "체험학습 참가"],
+    category: "행정업무",
+    levels: ["초등학교", "중학교", "고등학교"],
+  },
+  {
     id: "template-form",
     title: "HWP 양식으로 작성",
     description: "기존 HWP 양식을 업로드하면 자동으로 입력 항목을 만들어 드립니다.",

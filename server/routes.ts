@@ -992,6 +992,83 @@ ${contextDescription || "학생 정보, 체험학습 기간, 유형, 목적지 �
   }
 ]`;
         }
+      } else if (documentType === "참가 신청서") {
+        // 랜덤화 요소
+        const styles = ["격식체", "친근한 격식체", "간결체"];
+        const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+
+        if (fieldName === "motivationContent") {
+          const focusAreas = ["성장 의지", "관심 분야 연결", "목표 제시", "경험 기반"];
+          const randomFocus = focusAreas[Math.floor(Math.random() * focusAreas.length)];
+
+          prompt = `[핵심 지시] 참고 문서의 실제 참가 동기를 분석하고 스타일을 차용하세요.
+
+[입력 정보]
+${contextDescription}
+
+[이번 생성 설정]
+- 스타일: ${randomStyle}
+- 중점 영역: ${randomFocus}
+
+[다양성 규칙]
+- 참고 문서에서 표현/어휘를 골라 재조합
+- 매번 다른 문장 구조 사용
+- 고정된 템플릿 사용 금지
+- 프로그램 유형(${(context as Record<string, string>)?.programType || "공모전"})에 맞는 동기 작성
+
+[작성 지침]
+- 학생의 관점에서 진솔하게 작성
+- 프로그램 특성과 연결된 참가 이유 제시
+- 2-3문장으로 간결하게 작성
+
+참가 동기만 출력:`;
+        } else if (fieldName === "notices") {
+          const itemCounts = [3, 4, 5];
+          const randomCount = itemCounts[Math.floor(Math.random() * itemCounts.length)];
+          const programType = (context as Record<string, string>)?.programType || "contest";
+
+          prompt = `[핵심 지시] 참고 문서의 실제 유의사항을 분석하고 스타일을 차용하세요.
+
+[입력 정보]
+${contextDescription}
+
+[이번 생성 설정]
+- 항목 수: ${randomCount}개
+- 프로그램 유형: ${programType}
+
+[다양성 규칙]
+- 참고 문서에서 표현/어휘를 골라 재조합
+- 매번 다른 순서와 어휘 사용
+- 프로그램 유형별 특화 사항 포함
+
+[프로그램 유형별 참고]
+- contest(공모전): 작품 반환, 표절, 수상 취소, 저작권
+- camp(캠프): 준비물, 집합 시간, 안전 수칙
+- experience(체험학습): 복장, 준비물, 안전 주의
+- education(교육): 출석, 수료 조건
+
+[출력 형식]
+• 항목1
+• 항목2
+...
+
+유의사항만 출력:`;
+        } else if (fieldName === "workDescription") {
+          prompt = `[핵심 지시] 참고 문서의 작품 설명을 분석하고 스타일을 차용하세요.
+
+[입력 정보]
+${contextDescription}
+
+[이번 생성 설정]
+- 스타일: ${randomStyle}
+
+[다양성 규칙]
+- 참고 문서에서 표현/어휘를 골라 재조합
+- 작품 제목(${(context as Record<string, string>)?.workTitle || ""})과 주제(${(context as Record<string, string>)?.workTheme || ""})를 자연스럽게 연결
+- 2-3문장으로 간결하게
+
+작품 설명만 출력:`;
+        }
       }
 
       if (!prompt) {
