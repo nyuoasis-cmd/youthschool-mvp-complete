@@ -1088,28 +1088,141 @@ ${contextDescription}
 [생성 규칙]
 - 실제 학교에서 사용할 법한 자연스러운 예시 데이터 생성
 - 프로그램 유형에 맞는 프로그램명과 주최기관 생성
-- 학생 정보는 가상의 예시로 생성
-- 참가 동기는 2-3문장으로 진솔하게
+- 학생 정보는 가상의 예시로 생성 (이름, 학년, 반, 번호, 성별, 생년)
+- 참가 동기는 3-5문장으로 진솔하고 풍부하게
 - 유의사항은 프로그램 유형에 맞게 3-4개 항목 (• 로 시작)
+- **중요**: 모든 필드를 반드시 포함 (workTitle, workDescription 포함)
+- 대회/공모전이 아닌 경우: workTitle은 활동명/주제, workDescription은 활동 설명으로 생성
 
-[출력 형식] 아래 JSON 형식으로만 출력 (다른 텍스트 없이):
+[출력 형식] 아래 JSON 형식으로만 출력 (다른 텍스트 없이, 모든 필드 필수):
 {
   "programName": "프로그램명",
   "organizer": "주최기관명",
-  "participationCategory": "참가 부문",
+  "participationCategory": "참가 부문/대상 학년",
+  "capacity": "모집 인원 (예: 20명)",
+  "fee": "참가비 (예: 무료 또는 30,000원)",
+  "schedule": "운영 시간 (예: 매주 월요일 14:00~16:00)",
   "applicantName": "학생 이름",
   "school": "학교명",
   "grade": "학년 숫자만",
   "classNumber": "반 숫자만",
   "studentNumber": "번호 숫자만",
+  "gender": "남 또는 여",
+  "birthYear": "출생연도 (예: 2015년)",
   "contact": "010-0000-0000 형식",
   "guardianName": "보호자 이름",
   "guardianRelationship": "부 또는 모",
   "guardianContact": "010-0000-0000 형식",
-  "motivationContent": "참가 동기 내용",
+  "motivationContent": "참가 동기 내용 (3-5문장으로 풍부하게)",
+  "preferredSession": "희망 기수/시간대 (예: 1기 / 오전반)",
+  "specialNotes": "특이사항 (예: 견과류 알러지 또는 특이사항 없음)",
+  "workTitle": "작품/활동 제목 (필수)",
+  "workDescription": "작품/활동 설명 (2-3문장, 필수)",
   "notices": "• 유의사항1\\n• 유의사항2\\n• 유의사항3",
   "recipient": "수신자 귀하"
 }
+
+JSON만 출력:`;
+        }
+      } else if (documentType === "강의계획서") {
+        if (fieldName === "courseDescription") {
+          const courseName = (context as Record<string, string>)?.courseName || "";
+          const subjectArea = (context as Record<string, string>)?.subjectArea || "";
+
+          prompt = `[역할] 학교 강의계획서 작성 도우미
+
+[작업] 아래 과목에 대한 과목 설명 및 특성을 작성하세요.
+
+[입력 정보]
+- 과목명: ${courseName}
+- 교과 영역: ${subjectArea}
+${contextDescription}
+
+[작성 지침]
+- 해당 과목의 학습 목표와 특성을 명확하게 기술
+- 학생들이 배우게 될 핵심 내용 언급
+- 어떤 역량을 함양할 수 있는지 설명
+- 2-4문장으로 간결하게 작성
+- 공동교육과정/고등학교 수준에 맞는 전문적인 어조
+
+과목 설명만 출력:`;
+        } else if (fieldName === "weeklySchedule") {
+          const courseName = (context as Record<string, string>)?.courseName || "";
+          const credits = (context as Record<string, string>)?.credits || "2credits";
+          const totalWeeks = credits === "3credits" ? 16 : 12;
+
+          prompt = `[역할] 학교 강의계획서 작성 도우미
+
+[작업] 아래 과목의 주차별 강의 계획을 생성하세요.
+
+[입력 정보]
+- 과목명: ${courseName}
+- 총 회차: ${totalWeeks}회
+${contextDescription}
+
+[작성 지침]
+- ${totalWeeks}개 회차에 대한 계획 작성
+- 각 회차별로 단원명과 학습 내용 구체적으로 기술
+- 1회차는 오리엔테이션 포함
+- 중간/기말 평가 회차 포함
+- 학습 내용은 해당 단원의 핵심 주제 기술
+
+[출력 형식] JSON 배열로만 출력:
+[
+  {"session": "1", "unit": "단원명", "content": "학습 내용"},
+  {"session": "2", "unit": "단원명", "content": "학습 내용"},
+  ...
+]
+
+JSON만 출력:`;
+        } else if (fieldName === "allFields") {
+          prompt = `[역할] 학교 강의계획서 작성 도우미
+
+[작업] 공동교육과정 강의계획서의 모든 필드를 JSON으로 생성하세요.
+
+[필수 규칙]
+1. 아래 모든 필드를 반드시 포함 (누락 금지)
+2. 빈 문자열("") 금지 - 모든 필드에 실제 값 입력
+3. 실제 공동교육과정에서 사용할 법한 자연스러운 예시
+4. 배열 필드도 반드시 포함
+
+[출력 형식] 모든 필드 필수:
+{
+  "institution": "온세종학교",
+  "semester": "2025학년도 2학기",
+  "courseType": "joint",
+  "courseName": "인공지능수학",
+  "courseDescription": "인공지능의 기초가 되는 수학적 개념을 학습하고 실생활 문제에 적용합니다.",
+  "subjectArea": "수학",
+  "courseCategory": "career",
+  "instructorType": "instructor",
+  "instructorName": "김민수",
+  "instructorAffiliation": "서울시립대학교",
+  "credits": "2credits",
+  "totalSessions": "주 1회 (총 12회)",
+  "schedule": "(목) 18:30~21:00",
+  "targetGrade": "2, 3학년",
+  "capacity": "5~15명",
+  "location": "창의융합실",
+  "scope": "관내 고등학교",
+  "classTypes": ["강의형", "프로젝트수업형"],
+  "textbook": "자체 제작 교재",
+  "materials": "노트북, 필기구",
+  "evalMethod": "performance",
+  "scheduleRows": [
+    {"session": "1", "unit": "오리엔테이션", "content": "과목 소개 및 학습 계획 안내"},
+    {"session": "2", "unit": "데이터와 행렬", "content": "행렬의 기본 개념과 연산"},
+    {"session": "3", "unit": "선형변환", "content": "선형변환의 이해와 응용"}
+  ]
+}
+
+[필드 설명]
+- courseType: "joint"(공동교육과정), "inter-school"(학교간), "regular"(일반), "afterschool"(방과후)
+- courseCategory: "general"(일반선택), "career"(진로선택), "specialized"(전문교과), "extra"(고시외)
+- credits: "2credits" 또는 "3credits"
+- evalMethod: "performance"(수행100%), "written"(지필100%), "mixed"(혼합)
+- classTypes: 배열 - ["강의형", "토의·토론학습형", "프로젝트수업형", "PBL", "실험·실습형"] 중 선택
+- scheduleRows: 배열 - 최소 3개 이상의 주차별 계획
 
 JSON만 출력:`;
         }

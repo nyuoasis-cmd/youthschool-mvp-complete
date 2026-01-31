@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { FileText, Briefcase, Sparkles, Clock, CheckCircle2, Settings, LogIn, LogOut, User, Upload, ClipboardList, MapPin, Shield, CalendarDays, Scale, Users, Coins, MessageSquare, Wrench, Paperclip, Send, MoreHorizontal } from "lucide-react";
+import { FileText, Briefcase, Sparkles, Clock, CheckCircle2, Settings, LogIn, LogOut, User, Upload, ClipboardList, MapPin, Shield, CalendarDays, Scale, Users, Coins, MessageSquare, Wrench, Paperclip, Send, MoreHorizontal, BookOpen } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 const documentTypes = [
@@ -171,6 +171,16 @@ const documentTypes = [
     examples: ["공모전 참가", "캠프 신청", "체험학습 참가"],
     category: "행정업무",
     levels: ["초등학교", "중학교", "고등학교"],
+  },
+  {
+    id: "syllabus",
+    title: "강의계획서",
+    description: "공동교육과정 또는 학교 교육과정의 강의계획서를 AI로 작성합니다.",
+    icon: BookOpen,
+    href: "/create/syllabus",
+    examples: ["과목 설명 자동 생성", "주차별 계획 작성", "평가 방법 설정"],
+    category: "수업/평가",
+    levels: ["중학교", "고등학교"],
   },
   {
     id: "template-form",

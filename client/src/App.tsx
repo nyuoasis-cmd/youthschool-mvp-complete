@@ -26,6 +26,7 @@ import AbsenceReportForm from "@/pages/AbsenceReportForm";
 import RecruitmentNoticeForm from "@/pages/RecruitmentNoticeForm";
 import SuneungNoticeForm from "@/pages/SuneungNoticeForm";
 import ParticipationForm from "@/pages/ParticipationForm";
+import SyllabusForm from "@/pages/SyllabusForm";
 import MyPage from "@/pages/MyPage";
 import MyPageDocumentsPage from "@/pages/MyPageDocuments";
 import MyPageFavoritesPage from "@/pages/MyPageFavorites";
@@ -132,6 +133,7 @@ function Router() {
       <ProtectedRoute path="/create/recruitment-notice" component={RecruitmentNoticeForm} />
       <ProtectedRoute path="/create/suneung-notice" component={SuneungNoticeForm} />
       <ProtectedRoute path="/create/participation-form" component={ParticipationForm} />
+      <ProtectedRoute path="/create/syllabus" component={SyllabusForm} />
       <ProtectedRoute path="/mypage" component={MyPage} />
       <ProtectedRoute path="/mypage/documents" component={MyPageDocumentsPage} />
       <ProtectedRoute path="/mypage/favorites" component={MyPageFavoritesPage} />

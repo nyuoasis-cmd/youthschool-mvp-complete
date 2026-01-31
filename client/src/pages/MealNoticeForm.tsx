@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Sparkles, Loader2, Wand2, Eye } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import PDFDownloadButton from "@/components/PDFDownloadButton";
 import MealNoticePreview from "@/components/MealNoticePreview";
@@ -443,15 +443,10 @@ export default function MealNoticeForm() {
                 >
                   {generatingField === "greeting" ? (
                     <>
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
                       생성 중...
                     </>
-                  ) : (
-                    <>
-                      <Wand2 className="w-3 h-3 mr-1" />
-                      AI 작성
-                    </>
-                  )}
+                  ) : "AI 작성"}
                 </Button>
               </div>
               <Textarea
@@ -498,15 +493,10 @@ export default function MealNoticeForm() {
                 >
                   {generatingField === "paymentDetails" ? (
                     <>
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
                       생성 중...
                     </>
-                  ) : (
-                    <>
-                      <Wand2 className="w-3 h-3 mr-1" />
-                      AI 생성
-                    </>
-                  )}
+                  ) : "AI 생성"}
                 </Button>
               </div>
               <div className="overflow-x-auto rounded-lg border border-border">
@@ -611,15 +601,10 @@ export default function MealNoticeForm() {
                 >
                   {generatingField === "notices" ? (
                     <>
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
                       생성 중...
                     </>
-                  ) : (
-                    <>
-                      <Wand2 className="w-3 h-3 mr-1" />
-                      AI 생성
-                    </>
-                  )}
+                  ) : "AI 생성"}
                 </Button>
               </div>
               <div className="space-y-3">
@@ -677,7 +662,6 @@ export default function MealNoticeForm() {
 
             <div className="flex flex-col gap-3 pt-4 sm:flex-row">
               <Button type="button" variant="outline" onClick={() => setIsPreviewOpen(true)}>
-                <Eye className="w-4 h-4 mr-2" />
                 미리보기
               </Button>
               <Button
@@ -688,15 +672,10 @@ export default function MealNoticeForm() {
               >
                 {generateAllMutation.isPending || isGeneratingAll ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     AI 전부 생성 중...
                   </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    AI 전부 생성
-                  </>
-                )}
+                ) : "AI 전부 생성"}
               </Button>
               <Button type="button" variant="secondary" onClick={handleReset}>
                 초기화
