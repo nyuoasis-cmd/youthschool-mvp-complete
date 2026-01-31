@@ -6,6 +6,7 @@ import { requireFullAuth } from "../auth/middleware";
 import { and, desc, eq, ilike, isNull, inArray } from "drizzle-orm";
 import crypto from "crypto";
 import OpenAI from "openai";
+import { getRagReferenceDocuments } from "../rag";
 
 const router = Router();
 let openaiClient: OpenAI | null = null;
@@ -47,14 +48,38 @@ async function generateAssistantReply(content: string) {
     return "현재 AI 응답 생성이 준비 중입니다. 잠시 후 다시 시도해주세요.";
   }
 
+  // RAG 검색: 관련 문서 컨텍스트 가져오기
+  let ragContext = "";
+  try {
+    const references = await getRagReferenceDocuments({
+      documentType: "일반",
+      inputs: { query: content },
+      limit: 3,
+    });
+
+    if (references.length > 0) {
+      ragContext = "\n\n[참고 문서]\n" + references
+        .map((ref, idx) => `${idx + 1}. ${ref.title} (${ref.categoryName})\n${ref.contentSnippet}`)
+        .join("\n\n");
+      console.log(`[RAG Chat] Found ${references.length} reference documents`);
+    }
+  } catch (error) {
+    console.error("[RAG Chat] Error fetching references:", error);
+  }
+
+  const systemPrompt = `당신은 티처메이트(TeacherMate) AI입니다. 학교 행정 문서와 교육 업무 질문에 도움을 주세요.
+- 학교 문서 양식, 가정통신문, 공문 작성 등에 전문적인 도움을 제공합니다.
+- 친절하고 명확하게 답변해 주세요.
+- 관련 참고 문서가 제공된 경우, 해당 내용을 참고하여 더 정확한 답변을 해주세요.${ragContext}`;
+
   const completion = await client.chat.completions.create({
     model: "gpt-4o-mini",
-    max_tokens: 800,
+    max_tokens: 1200,
     temperature: 0.7,
     messages: [
       {
         role: "system",
-        content: "당신은 YouthSchool AI입니다. 학교 행정 문서와 교육 업무 질문에 도움을 주세요.",
+        content: systemPrompt,
       },
       { role: "user", content },
     ],

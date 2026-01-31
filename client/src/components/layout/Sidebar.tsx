@@ -133,11 +133,11 @@ export function Sidebar() {
             >
               <button
                 type="button"
-                className="flex flex-1 items-center gap-2 text-left text-sm"
+                className="flex flex-1 items-center gap-2 text-left text-sm overflow-hidden"
                 onClick={() => navigate(`/result/${doc.id}`)}
               >
-                <span className="text-base">{getDocumentIcon(doc.documentType)}</span>
-                <span className="truncate">{doc.title}</span>
+                <span className="text-base shrink-0">{getDocumentIcon(doc.documentType)}</span>
+                <span className="truncate max-w-full">{doc.title}</span>
               </button>
 
               <DropdownMenu>

@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Sparkles, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 import PDFDownloadButton from "@/components/PDFDownloadButton";
 import MealNoticePreview from "@/components/MealNoticePreview";
@@ -26,6 +26,10 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatDateRange } from "@/utils/dateFormat";
 import { GuideSidebar, MealNoticeGuide } from "@/components/guide-sidebar";
+import {
+  FormSectionSidebar,
+  type FormSection,
+} from "@/components/form-sidebar";
 
 type PaymentRow = {
   id: string;
@@ -75,12 +79,26 @@ const createNoticeItem = (): NoticeItem => ({
   content: "",
 });
 
+// 섹션 정의
+const FORM_SECTIONS: FormSection[] = [
+  { id: "section-title", number: 1, title: "문서 제목" },
+  { id: "section-greeting", number: 2, title: "인사말" },
+  { id: "section-period", number: 3, title: "급식/납부기간" },
+  { id: "section-payment", number: 4, title: "납부내역" },
+  { id: "section-method", number: 5, title: "납부 방법" },
+  { id: "section-notices", number: 6, title: "추가 안내" },
+  { id: "section-issue", number: 7, title: "발행 정보" },
+];
+
 export default function MealNoticeForm() {
   const { toast } = useToast();
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [generatingField, setGeneratingField] = useState<string | null>(null);
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+  const [activeSection, setActiveSection] = useState<string>("section-title");
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const [academicYear, setAcademicYear] = useState("2025학년도");
   const [month, setMonth] = useState("4월");
   const [greeting, setGreeting] = useState("");
@@ -114,6 +132,21 @@ export default function MealNoticeForm() {
   const schoolName = profile?.schoolName || "학교명";
   const signatureText = principalSignature || (schoolName ? `${schoolName}장` : "");
   const pdfFileName = `${academicYear}_${month}_급식안내문`;
+
+  // 섹션으로 스크롤
+  const scrollToSection = useCallback((sectionId: string) => {
+    const el = sectionRefs.current[sectionId];
+    if (el) {
+      const y = el.getBoundingClientRect().top + window.pageYOffset - 100;
+      window.scrollTo({ top: y, behavior: "smooth" });
+      setActiveSection(sectionId);
+    }
+  }, []);
+
+  // ref 설정 헬퍼
+  const setSectionRef = useCallback((id: string) => (el: HTMLElement | null) => {
+    sectionRefs.current[id] = el;
+  }, []);
 
   const handleAddPaymentRow = () => {
     setPaymentDetails((prev) => [...prev, createPaymentRow()]);
@@ -260,63 +293,100 @@ export default function MealNoticeForm() {
 
   const generateAllMutation = useMutation({
     mutationFn: async () => {
-      const fields = [
-        { fieldName: "greeting", fieldLabel: "인사말" },
-        { fieldName: "paymentDetails", fieldLabel: "납부내역" },
-        { fieldName: "notices", fieldLabel: "추가 안내 항목" },
-      ];
-
-      const results: Array<{ fieldName: string; generatedContent: string }> = [];
-
-      for (const field of fields) {
-        const response = await apiRequest("POST", "/api/documents/generate-field", {
-          documentType: "급식안내문",
-          fieldName: field.fieldName,
-          fieldLabel: field.fieldLabel,
-          context: {
-            academicYear,
-            month,
-            title: previewTitle,
-            greeting,
-            mealPeriod: mealPeriodText,
-            paymentPeriod: paymentPeriodText,
-            paymentMethod,
-            issueDate,
-            schoolName,
-          },
-        });
-
-        const data = await response.json();
-        if (data.error) {
-          throw new Error(data.error);
-        }
-
-        results.push({
-          fieldName: data.fieldName || field.fieldName,
-          generatedContent: String(data.generatedContent || "").trim(),
-        });
+      const response = await apiRequest("POST", "/api/documents/generate-field", {
+        documentType: "급식안내문",
+        fieldName: "allFields",
+        fieldLabel: "전체 필드",
+        context: {
+          academicYear,
+          month,
+          title: previewTitle,
+          greeting,
+          mealPeriod: mealPeriodText,
+          paymentPeriod: paymentPeriodText,
+          paymentMethod,
+          issueDate,
+          schoolName,
+        },
+      });
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
       }
-
-      return results;
+      // Parse JSON if string
+      let parsed = data.generatedContent;
+      if (typeof parsed === "string") {
+        try {
+          parsed = JSON.parse(parsed);
+        } catch {
+          throw new Error("응답 형식 오류");
+        }
+      }
+      return parsed;
     },
     onMutate: () => {
       setIsGeneratingAll(true);
     },
-    onSuccess: (results) => {
-      let hasError = false;
-      results.forEach(({ fieldName, generatedContent }) => {
-        const applied = applyGeneratedField(fieldName, generatedContent);
-        if (!applied) {
-          hasError = true;
+    onSuccess: (data: {
+      greeting?: string;
+      mealPeriod?: { start: string; end: string };
+      paymentPeriod?: { start: string; end: string };
+      paymentMethod?: string;
+      paymentDetails?: Array<{ grade: string; category: string; calculation: string; amount: string; note: string }>;
+      notices?: string[];
+    }) => {
+      // 인사말 설정
+      if (data.greeting) {
+        setGreeting(String(data.greeting).trim());
+      }
+      // 급식 기간 설정
+      if (data.mealPeriod && typeof data.mealPeriod === "object") {
+        setMealPeriod({
+          start: data.mealPeriod.start || "",
+          end: data.mealPeriod.end || "",
+        });
+      }
+      // 납부 기간 설정
+      if (data.paymentPeriod && typeof data.paymentPeriod === "object") {
+        setPaymentPeriod({
+          start: data.paymentPeriod.start || "",
+          end: data.paymentPeriod.end || "",
+        });
+      }
+      // 납부 방법 설정
+      if (data.paymentMethod) {
+        setPaymentMethod(String(data.paymentMethod).trim());
+      }
+      // 납부내역 설정
+      if (data.paymentDetails && Array.isArray(data.paymentDetails)) {
+        const parsed = data.paymentDetails.map((row) => ({
+          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          grade: String(row.grade || ""),
+          category: String(row.category || ""),
+          calculation: String(row.calculation || ""),
+          amount: String(row.amount || ""),
+          note: String(row.note || ""),
+        }));
+        if (parsed.length > 0) {
+          setPaymentDetails(parsed);
         }
-      });
+      }
+      // 안내사항 설정
+      if (data.notices && Array.isArray(data.notices)) {
+        const parsed = data.notices
+          .filter((item) => typeof item === "string" && item.trim())
+          .map((content) => ({
+            id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            content: String(content).trim(),
+          }));
+        if (parsed.length > 0) {
+          setNotices(parsed);
+        }
+      }
 
       toast({
-        title: hasError ? "일부 항목 확인 필요" : "AI 전부 생성 완료",
-        description: hasError
-          ? "일부 항목의 결과 형식을 확인해주세요."
-          : "모든 항목이 생성되었습니다. 필요시 수정해주세요.",
-        variant: hasError ? "destructive" : "default",
+        title: "AI 전부 생성 완료",
+        description: "모든 항목이 생성되었습니다. 필요시 수정해주세요.",
       });
     },
     onError: (error: Error) => {
@@ -361,7 +431,20 @@ export default function MealNoticeForm() {
 
   return (
     <div className="min-h-screen bg-background relative">
-      <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50 h-[73px]">
+      {/* 좌측 사이드바: 섹션 목록 */}
+      <FormSectionSidebar
+        isOpen={leftSidebarOpen}
+        onToggle={() => setLeftSidebarOpen(!leftSidebarOpen)}
+        documentTitle="급식안내문"
+        sections={FORM_SECTIONS}
+        activeSection={activeSection}
+        onSectionClick={scrollToSection}
+      />
+
+      <header
+        className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-40 h-[73px] transition-all duration-300"
+        style={{ marginLeft: leftSidebarOpen ? "256px" : "0" }}
+      >
         <div className="max-w-4xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -383,17 +466,21 @@ export default function MealNoticeForm() {
         </div>
       </header>
 
-      <main className={`max-w-4xl mx-auto px-6 py-8 transition-all duration-300 ${isSidebarOpen ? 'mr-[360px]' : ''}`}>
+      <main
+        className="px-6 py-8 transition-all duration-300"
+        style={{
+          marginLeft: leftSidebarOpen ? "256px" : "0",
+          marginRight: isSidebarOpen ? "360px" : "0",
+        }}
+      >
+        <div className="max-w-4xl mx-auto">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              급식안내문 정보 입력
-            </CardTitle>
+            <CardTitle>급식안내문 정보 입력</CardTitle>
             <CardDescription>입력한 내용으로 AI가 항목을 생성합니다.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <section className="space-y-3">
+            <section ref={setSectionRef("section-title")} className="space-y-3">
               <h2 className="text-sm font-semibold text-foreground">문서 제목</h2>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
@@ -431,7 +518,7 @@ export default function MealNoticeForm() {
 
             <div className="h-px bg-border" />
 
-            <section className="space-y-3">
+            <section ref={setSectionRef("section-greeting")} className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-foreground">인사말</h2>
                 <Button
@@ -446,7 +533,7 @@ export default function MealNoticeForm() {
                       <Loader2 className="h-4 w-4 animate-spin mr-1" />
                       생성 중...
                     </>
-                  ) : "AI 작성"}
+                  ) : "AI 생성"}
                 </Button>
               </div>
               <Textarea
@@ -459,7 +546,7 @@ export default function MealNoticeForm() {
 
             <div className="h-px bg-border" />
 
-            <section className="grid gap-4 md:grid-cols-2">
+            <section ref={setSectionRef("section-period")} className="grid gap-4 md:grid-cols-2">
               <DateRangePicker
                 label="급식 기간"
                 value={mealPeriod}
@@ -481,7 +568,7 @@ export default function MealNoticeForm() {
 
             <div className="h-px bg-border" />
 
-            <section className="space-y-3">
+            <section ref={setSectionRef("section-payment")} className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-foreground">납부내역</h2>
                 <Button
@@ -578,7 +665,7 @@ export default function MealNoticeForm() {
 
             <div className="h-px bg-border" />
 
-            <section className="space-y-2">
+            <section ref={setSectionRef("section-method")} className="space-y-2">
               <h2 className="text-sm font-semibold text-foreground">납부 방법</h2>
               <Input
                 placeholder="예: 스쿨뱅킹"
@@ -589,7 +676,7 @@ export default function MealNoticeForm() {
 
             <div className="h-px bg-border" />
 
-            <section className="space-y-3">
+            <section ref={setSectionRef("section-notices")} className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-foreground">추가 안내 항목</h2>
                 <Button
@@ -638,7 +725,7 @@ export default function MealNoticeForm() {
 
             <div className="h-px bg-border" />
 
-            <section className="grid gap-4 md:grid-cols-2">
+            <section ref={setSectionRef("section-issue")} className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <span className="text-sm font-semibold text-foreground">발행 날짜</span>
                 <Input
@@ -683,6 +770,7 @@ export default function MealNoticeForm() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </main>
 
       {/* 미리보기 모달 */}

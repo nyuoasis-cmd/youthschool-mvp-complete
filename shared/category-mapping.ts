@@ -14,6 +14,8 @@ export type TeacherMateDocumentType =
   | "수능/모의평가 안내"
   | "참가 신청서"
   | "강의계획서"
+  | "채용공고"
+  | "결석신고서"
   | "HWP 양식으로 작성";
 
 export const DOCUMENT_TYPE_TO_RAG_CATEGORY_IDS: Record<
@@ -48,6 +50,8 @@ export const DOCUMENT_TYPE_TO_RAG_CATEGORY_IDS: Record<
   "수능/모의평가 안내": ["college-exam", "exam-plan", "home-letter", "timetable"],
   "참가 신청서": ["field-trip", "event-notice", "home-letter", "volunteer"],
   "강의계획서": ["curriculum", "lecture-plan", "work-plan"],
+  "채용공고": ["recruitment"],
+  "결석신고서": ["attendance", "home-letter", "health-safety"],
   "HWP 양식으로 작성": [],
 };
 

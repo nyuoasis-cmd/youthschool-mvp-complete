@@ -639,10 +639,7 @@ export default function SyllabusForm() {
         <div className="max-w-4xl mx-auto">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-primary" />
-                강의계획서 정보 입력
-              </CardTitle>
+              <CardTitle>강의계획서 정보 입력</CardTitle>
               <CardDescription>입력한 내용으로 AI가 항목을 생성합니다.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">

@@ -8,20 +8,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { FileText, Briefcase, Sparkles, Clock, CheckCircle2, Settings, LogIn, LogOut, User, Upload, ClipboardList, MapPin, Shield, CalendarDays, Scale, Users, Coins, MessageSquare, Wrench, Paperclip, Send, MoreHorizontal, BookOpen } from "lucide-react";
+import { FileText, Sparkles, Clock, CheckCircle2, Settings, LogIn, LogOut, User, ClipboardList, MessageSquare, Wrench, Paperclip, Send, MoreHorizontal, BookOpen } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 const documentTypes = [
-  {
-    id: "parent-letter",
-    title: "가정통신문",
-    description: "학부모님께 전달하는 공식 안내문을 AI가 전문적으로 작성합니다.",
-    icon: FileText,
-    href: "/create/parent-letter",
-    examples: ["겨울방학 안전 안내", "학교 행사 참가 안내", "학급 운영 안내"],
-    category: "행정업무",
-    levels: ["초등학교", "중학교", "고등학교"],
-  },
   {
     id: "meal-notice",
     title: "급식안내문",
@@ -53,106 +43,6 @@ const documentTypes = [
     levels: ["고등학교"],
   },
   {
-    id: "parent-meeting",
-    title: "학부모총회 안내",
-    description: "학기 초 학부모총회 안내문을 전문적으로 작성합니다.",
-    icon: Users,
-    href: "/create/parent-meeting",
-    examples: ["정기/임시총회 지원", "안건별 상세 작성", "참석 안내 자동 생성"],
-    category: "행정업무",
-    levels: ["초등학교", "중학교", "고등학교"],
-  },
-  {
-    id: "budget-disclosure",
-    title: "예산/결산 공개 자료",
-    description: "학교 예산 및 결산 공개 설명 자료를 전문적으로 작성합니다.",
-    icon: Coins,
-    href: "/create/budget-disclosure",
-    examples: ["예산/결산 구분 지원", "재원별 자동 계산", "인포그래픽 생성"],
-    category: "행정업무",
-    levels: ["초등학교", "중학교", "고등학교"],
-  },
-  {
-    id: "education-plan",
-    title: "외부 교육 용역 계획서",
-    description: "비즈쿨, 창업교육 등 외부 교육 프로그램 계획서를 체계적으로 작성합니다.",
-    icon: Briefcase,
-    href: "/create/education-plan",
-    examples: ["창업 체험 프로그램", "진로 탐색 교육", "코딩 교육 프로그램"],
-    category: "행정업무",
-    levels: ["중학교", "고등학교"],
-  },
-  {
-    id: "after-school-plan",
-    title: "방과후학교 운영계획서",
-    description: "방과후학교 운영 정보를 단계별로 입력해 계획서를 자동 생성합니다.",
-    icon: ClipboardList,
-    href: "/create/after-school-plan",
-    examples: ["기본 운영 정보", "프로그램 운영표", "안전 관리 계획"],
-    category: "행정업무",
-    levels: ["초등학교", "중학교"],
-  },
-  {
-    id: "care-plan",
-    title: "초등돌봄교실 운영계획서",
-    description: "돌봄교실 운영 정보를 입력하고 AI로 서술형 항목을 자동 생성합니다.",
-    icon: ClipboardList,
-    href: "/create/care-plan",
-    examples: ["운영 목표/방침", "프로그램 운영", "안전 및 급식 관리"],
-    category: "행정업무",
-    levels: ["초등학교"],
-  },
-  {
-    id: "field-trip-plan",
-    title: "현장체험학습 운영계획서",
-    description: "체험학습 운영 정보를 단계별로 입력해 계획서를 자동 생성합니다.",
-    icon: MapPin,
-    href: "/create/field-trip-plan",
-    examples: ["교육 목표 및 일정", "안전 관리 계획", "이동 및 활동 계획"],
-    category: "행정업무",
-    levels: ["초등학교", "중학교", "고등학교"],
-  },
-  {
-    id: "field-trip-application",
-    title: "교외체험학습 신청서",
-    description: "교외체험학습 신청 정보를 입력하면 신청서를 자동으로 완성합니다.",
-    icon: MapPin,
-    href: "/create/field-trip-application",
-    examples: ["체험학습 기간", "체험 유형 선택", "동의 사항 작성"],
-    category: "행정업무",
-    levels: ["초등학교", "중학교", "고등학교"],
-  },
-  {
-    id: "safety-education-plan",
-    title: "학교 안전교육 계획서",
-    description: "7대 안전교육을 포함한 연간/학기별 안전교육 계획서를 자동 생성합니다.",
-    icon: Shield,
-    href: "/create/safety-education-plan",
-    examples: ["7대 안전교육 영역별 계획", "법정 시수 자동 검증", "월별 실행 계획"],
-    category: "행정업무",
-    levels: ["초등학교", "중학교", "고등학교"],
-  },
-  {
-    id: "bullying-prevention-plan",
-    title: "학교폭력 예방 교육 계획서",
-    description: "학교폭력 예방을 위한 체계적인 교육 계획서를 자동 생성합니다.",
-    icon: Scale,
-    href: "/create/bullying-prevention-plan",
-    examples: ["학생·교직원·학부모 교육 계획", "법정 요건 자동 검증", "상담 및 신고 체계 구축"],
-    category: "행정업무",
-    levels: ["초등학교", "중학교", "고등학교"],
-  },
-  {
-    id: "event-plan",
-    title: "교내 행사 운영계획서",
-    description: "체육대회, 축제, 졸업식 등 다양한 교내 행사 계획서를 자동 생성합니다.",
-    icon: CalendarDays,
-    href: "/create/event-plan",
-    examples: ["6가지 행사 유형 지원", "안전 관리 체계 수립", "예산 자동 계산"],
-    category: "행정업무",
-    levels: ["초등학교", "중학교", "고등학교"],
-  },
-  {
     id: "recruitment-notice",
     title: "채용공고 작성",
     description: "학교 채용공고를 AI로 쉽게 작성하세요. 교육공무직 채용에 최적화되어 있습니다.",
@@ -182,20 +72,9 @@ const documentTypes = [
     category: "수업/평가",
     levels: ["중학교", "고등학교"],
   },
-  {
-    id: "template-form",
-    title: "HWP 양식으로 작성",
-    description: "기존 HWP 양식을 업로드하면 자동으로 입력 항목을 만들어 드립니다.",
-    icon: Upload,
-    href: "/create/template",
-    examples: ["기존 가정통신문 양식", "학교 공문 양식", "교육청 서식"],
-    category: "기타",
-    levels: ["초등학교", "중학교", "고등학교"],
-  },
 ];
 
 const CATEGORY_OPTIONS = ["전체", "수업/평가", "생활기록", "상담업무", "행정업무", "기타"] as const;
-const LEVEL_OPTIONS = ["전체", "초등학교", "중학교", "고등학교"] as const;
 
 const features = [
   {
@@ -230,7 +109,6 @@ export default function Home() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedCategory, setSelectedCategory] = useState<(typeof CATEGORY_OPTIONS)[number]>("전체");
-  const [selectedLevel, setSelectedLevel] = useState<(typeof LEVEL_OPTIONS)[number]>("전체");
   const [activeSection, setActiveSection] = useState<"chat" | "tools">("chat");
   const [chatInput, setChatInput] = useState("");
   const [homeChatId, setHomeChatId] = useState<string | null>(null);
@@ -263,11 +141,9 @@ export default function Home() {
 
   const filteredDocuments = useMemo(() => {
     return documentTypes.filter((doc) => {
-      const categoryMatch = selectedCategory === "전체" || doc.category === selectedCategory;
-      const levelMatch = selectedLevel === "전체" || doc.levels.includes(selectedLevel);
-      return categoryMatch && levelMatch;
+      return selectedCategory === "전체" || doc.category === selectedCategory;
     });
-  }, [selectedCategory, selectedLevel]);
+  }, [selectedCategory]);
 
   const quickPrompts = [
     "방과후학교 가정통신문",
@@ -375,6 +251,14 @@ export default function Home() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
+    if (files.length > 8) {
+      toast({
+        title: "파일 개수 초과",
+        description: "파일은 최대 8개까지 첨부할 수 있습니다.",
+        variant: "destructive",
+      });
+      return;
+    }
     setAttachedFiles(files);
   };
 
@@ -543,11 +427,11 @@ export default function Home() {
                     >
                       <button
                         type="button"
-                        className="flex flex-1 items-center gap-2 text-left text-sm"
-                        onClick={() => navigate(`/result/${doc.id}`)}
+                        className="flex flex-1 items-center gap-2 text-left text-sm overflow-hidden"
+                        onClick={() => setLocation(`/result/${doc.id}`)}
                       >
-                        <span className="text-base">{getDocumentIcon(doc.documentType)}</span>
-                        <span className="truncate">{doc.title}</span>
+                        <span className="text-base shrink-0">{getDocumentIcon(doc.documentType)}</span>
+                        <span className="truncate max-w-full">{doc.title}</span>
                       </button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -591,10 +475,9 @@ export default function Home() {
                   <div className="min-h-[calc(100vh-200px)] flex items-center justify-center px-6">
                     <div className="w-full max-w-2xl space-y-6">
                       <div className="text-center space-y-3">
-                        <h1 className="text-4xl md:text-5xl font-semibold">
-                          {user?.name ? `${user.name} 선생님,` : "안녕하세요"}
+                        <h1 className="text-2xl md:text-3xl font-semibold text-muted-foreground">
+                          무엇을 도와드릴까요?
                         </h1>
-                        <p className="text-lg md:text-xl text-muted-foreground">무엇을 도와드릴까요?</p>
                       </div>
                       <div className="flex items-end gap-4 rounded-3xl border bg-background px-6 py-5 shadow-sm">
                         <input
@@ -767,20 +650,6 @@ export default function Home() {
                           onClick={() => setSelectedCategory(category)}
                         >
                           {category}
-                        </Button>
-                      ))}
-                    </div>
-                    <span className="text-muted-foreground">|</span>
-                    <div className="flex flex-wrap gap-2">
-                      {LEVEL_OPTIONS.map((level) => (
-                        <Button
-                          key={level}
-                          type="button"
-                          variant={selectedLevel === level ? "secondary" : "outline"}
-                          size="sm"
-                          onClick={() => setSelectedLevel(level)}
-                        >
-                          {level}
                         </Button>
                       ))}
                     </div>

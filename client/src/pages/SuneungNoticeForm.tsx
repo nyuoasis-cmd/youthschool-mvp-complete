@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Sparkles, Loader2, Wand2, Eye, Plus, X } from "lucide-react";
 import { Link } from "wouter";
@@ -17,6 +17,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { GuideSidebar, SuneungNoticeGuide } from "@/components/guide-sidebar";
+import {
+  FormSectionSidebar,
+  type FormSection,
+} from "@/components/form-sidebar";
 
 // 타입 정의
 interface ProfileData {
@@ -62,13 +66,28 @@ const createNoticeItem = (): NoticeItem => ({
   content: "",
 });
 
+// 섹션 정의
+const FORM_SECTIONS: FormSection[] = [
+  { id: "section-basic", number: 1, title: "기본 정보" },
+  { id: "section-greeting", number: 2, title: "인사말" },
+  { id: "section-schedule", number: 3, title: "시험 시간표" },
+  { id: "section-supplies", number: 4, title: "준비물 안내" },
+  { id: "section-cautions", number: 5, title: "유의사항" },
+  { id: "section-entry", number: 6, title: "입실 시간" },
+  { id: "section-notes", number: 7, title: "추가 안내" },
+  { id: "section-issue", number: 8, title: "발행 정보" },
+];
+
 export default function SuneungNoticeForm() {
   const { toast } = useToast();
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [generatingField, setGeneratingField] = useState<string | null>(null);
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+  const [activeSection, setActiveSection] = useState<string>("section-basic");
   const documentRef = useRef<HTMLDivElement>(null);
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
   // 기본 정보
   const [academicYear, setAcademicYear] = useState("");
@@ -105,6 +124,21 @@ export default function SuneungNoticeForm() {
   const schoolName = profile?.schoolName || "학교명";
   const signatureText = principalSignature || (schoolName ? `${schoolName}장` : "");
   const pdfFileName = `${academicYear}_${examType}_안내문`;
+
+  // 섹션으로 스크롤
+  const scrollToSection = useCallback((sectionId: string) => {
+    const el = sectionRefs.current[sectionId];
+    if (el) {
+      const y = el.getBoundingClientRect().top + window.pageYOffset - 100;
+      window.scrollTo({ top: y, behavior: "smooth" });
+      setActiveSection(sectionId);
+    }
+  }, []);
+
+  // ref 설정 헬퍼
+  const setSectionRef = useCallback((id: string) => (el: HTMLElement | null) => {
+    sectionRefs.current[id] = el;
+  }, []);
 
   // 시간표 핸들러
   const handleAddScheduleRow = () => {
@@ -247,11 +281,11 @@ export default function SuneungNoticeForm() {
   const generateAllMutation = useMutation({
     mutationFn: async () => {
       const fields = [
+        { fieldName: "basicInfo", fieldLabel: "기본 정보" },
         { fieldName: "greeting", fieldLabel: "인사말" },
         { fieldName: "schedules", fieldLabel: "시험 시간표" },
         { fieldName: "supplies", fieldLabel: "준비물" },
         { fieldName: "cautions", fieldLabel: "유의사항" },
-        { fieldName: "entryTime", fieldLabel: "입실 시간" },
         { fieldName: "additionalNotes", fieldLabel: "추가 안내" },
       ];
 
@@ -288,7 +322,19 @@ export default function SuneungNoticeForm() {
     },
     onSuccess: (results) => {
       results.forEach(({ fieldName, generatedContent }) => {
-        if (fieldName === "greeting") {
+        if (fieldName === "basicInfo") {
+          try {
+            const parsed = typeof generatedContent === "string" ? JSON.parse(generatedContent) : generatedContent;
+            if (parsed && typeof parsed === "object") {
+              const basicData = parsed as { academicYear?: string; examType?: string; examDate?: string };
+              if (basicData.academicYear) setAcademicYear(basicData.academicYear);
+              if (basicData.examType) setExamType(basicData.examType);
+              if (basicData.examDate) setExamDate(basicData.examDate);
+            }
+          } catch {
+            console.error("Failed to parse basicInfo JSON");
+          }
+        } else if (fieldName === "greeting") {
           setGreeting(String(generatedContent || "").trim());
         } else if (fieldName === "cautions") {
           setCautions(String(generatedContent || "").trim());
@@ -411,9 +457,22 @@ export default function SuneungNoticeForm() {
   ]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      {/* 좌측 사이드바: 섹션 목록 */}
+      <FormSectionSidebar
+        isOpen={leftSidebarOpen}
+        onToggle={() => setLeftSidebarOpen(!leftSidebarOpen)}
+        documentTitle="수능/모의평가 안내문"
+        sections={FORM_SECTIONS}
+        activeSection={activeSection}
+        onSectionClick={scrollToSection}
+      />
+
       {/* 상단 헤더 */}
-      <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50 h-[73px]">
+      <header
+        className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-40 h-[73px] transition-all duration-300"
+        style={{ marginLeft: leftSidebarOpen ? "256px" : "0" }}
+      >
         <div className="max-w-4xl mx-auto px-6 h-full flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" asChild>
@@ -434,61 +493,59 @@ export default function SuneungNoticeForm() {
       </header>
 
       {/* 메인 폼 영역 */}
-      <main className={`max-w-4xl mx-auto px-6 py-8 transition-all duration-300 ${isSidebarOpen ? "mr-[360px]" : ""}`}>
-        <div className="space-y-8">
-          {/* 섹션 1: 기본 정보 */}
+      <main
+        className="px-6 py-8 transition-all duration-300"
+        style={{
+          marginLeft: leftSidebarOpen ? "256px" : "0",
+          marginRight: isSidebarOpen ? "360px" : "0",
+        }}
+      >
+        <div className="max-w-4xl mx-auto space-y-8">
+          {/* 수능/모의평가 안내문 정보 입력 */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">1</span>
-                기본 정보
-              </CardTitle>
-              <CardDescription>학년도와 시험 유형을 선택하세요.</CardDescription>
+              <CardTitle>수능/모의평가 안내문 정보 입력</CardTitle>
+              <CardDescription>입력한 내용으로 AI가 항목을 생성합니다.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 grid-cols-[1fr_1fr_160px]">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">학년도 <span className="text-destructive">*</span></label>
-                  <Input
-                    value={academicYear}
-                    onChange={(e) => setAcademicYear(e.target.value)}
-                    placeholder="예: 2026학년도"
-                  />
+            <CardContent className="space-y-6">
+              {/* 섹션 1: 기본 정보 */}
+              <section ref={setSectionRef("section-basic")} className="space-y-4">
+                <h2 className="text-sm font-semibold text-foreground">기본 정보</h2>
+                <div className="grid gap-4 grid-cols-[1fr_1fr_160px]">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">학년도 <span className="text-destructive">*</span></label>
+                    <Input
+                      value={academicYear}
+                      onChange={(e) => setAcademicYear(e.target.value)}
+                      placeholder="예: 2026학년도"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">시험 유형 <span className="text-destructive">*</span></label>
+                    <Input
+                      value={examType}
+                      onChange={(e) => setExamType(e.target.value)}
+                      placeholder="예: 9월 모의평가"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">시험일</label>
+                    <Input
+                      type="date"
+                      value={examDate}
+                      onChange={(e) => setExamDate(e.target.value)}
+                      className="[&::-webkit-calendar-picker-indicator]:ml-auto"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">시험 유형 <span className="text-destructive">*</span></label>
-                  <Input
-                    value={examType}
-                    onChange={(e) => setExamType(e.target.value)}
-                    placeholder="예: 9월 모의평가"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">시험일</label>
-                  <Input
-                    type="date"
-                    value={examDate}
-                    onChange={(e) => setExamDate(e.target.value)}
-                    className="[&::-webkit-calendar-picker-indicator]:ml-auto"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </section>
 
-          {/* 섹션 2: 인사말 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">2</span>
-                인사말
-              </CardTitle>
-              <CardDescription>학부모님께 전달할 인사말을 작성하세요.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
+              <div className="h-px bg-border" />
+
+              {/* 섹션 2: 인사말 */}
+              <section ref={setSectionRef("section-greeting")} className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">인사말</label>
+                  <h2 className="text-sm font-semibold text-foreground">인사말</h2>
                   <Button
                     type="button"
                     variant="outline"
@@ -504,7 +561,7 @@ export default function SuneungNoticeForm() {
                     ) : (
                       <>
                         <Wand2 className="w-3 h-3 mr-1" />
-                        AI 작성
+                        AI 생성
                       </>
                     )}
                   </Button>
@@ -515,189 +572,168 @@ export default function SuneungNoticeForm() {
                   value={greeting}
                   onChange={(e) => setGreeting(e.target.value)}
                 />
-              </div>
-            </CardContent>
-          </Card>
+              </section>
 
-          {/* 섹션 3: 시험 시간표 */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">3</span>
-                  시험 시간표
-                </CardTitle>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => generateFieldMutation.mutate({ fieldName: "schedules", fieldLabel: "시험 시간표" })}
-                  disabled={generatingField === "schedules" || isGeneratingAll}
-                >
-                  {generatingField === "schedules" ? (
-                    <>
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      생성 중...
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="w-3 h-3 mr-1" />
-                      AI 작성
-                    </>
-                  )}
-                </Button>
-              </div>
-              <CardDescription>교시별 시험 시간과 영역을 입력하세요.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-muted">
-                      <th className="border border-border px-3 py-2 text-left font-medium w-16">교시</th>
-                      <th className="border border-border px-3 py-2 text-left font-medium">시험 영역</th>
-                      <th className="border border-border px-3 py-2 text-left font-medium">시험 시간</th>
-                      <th className="border border-border px-3 py-2 text-left font-medium w-20">문항 수</th>
-                      <th className="border border-border px-3 py-2 text-left font-medium">비고</th>
-                      <th className="border border-border px-3 py-2 w-12"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {schedules.map((row) => (
-                      <tr key={row.id}>
-                        <td className="border border-border px-2 py-1">
-                          <Input
-                            value={row.period}
-                            onChange={(e) => handleUpdateScheduleRow(row.id, "period", e.target.value)}
-                            className="h-8"
-                            placeholder="1"
-                          />
-                        </td>
-                        <td className="border border-border px-2 py-1">
-                          <Input
-                            value={row.subject}
-                            onChange={(e) => handleUpdateScheduleRow(row.id, "subject", e.target.value)}
-                            className="h-8"
-                            placeholder="국어"
-                          />
-                        </td>
-                        <td className="border border-border px-2 py-1">
-                          <Input
-                            value={row.time}
-                            onChange={(e) => handleUpdateScheduleRow(row.id, "time", e.target.value)}
-                            className="h-8"
-                            placeholder="08:40~10:00 (80분)"
-                          />
-                        </td>
-                        <td className="border border-border px-2 py-1">
-                          <Input
-                            value={row.questions}
-                            onChange={(e) => handleUpdateScheduleRow(row.id, "questions", e.target.value)}
-                            className="h-8"
-                            placeholder="45"
-                          />
-                        </td>
-                        <td className="border border-border px-2 py-1">
-                          <Input
-                            value={row.note}
-                            onChange={(e) => handleUpdateScheduleRow(row.id, "note", e.target.value)}
-                            className="h-8"
-                            placeholder="비고"
-                          />
-                        </td>
-                        <td className="border border-border px-2 py-1 text-center">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleRemoveScheduleRow(row.id)}
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <Button type="button" variant="outline" size="sm" onClick={handleAddScheduleRow}>
-                <Plus className="w-4 h-4 mr-1" />
-                행 추가
-              </Button>
-            </CardContent>
-          </Card>
+              <div className="h-px bg-border" />
 
-          {/* 섹션 4: 준비물 안내 */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">4</span>
-                  준비물 안내
-                </CardTitle>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => generateFieldMutation.mutate({ fieldName: "supplies", fieldLabel: "준비물" })}
-                  disabled={generatingField === "supplies" || isGeneratingAll}
-                >
-                  {generatingField === "supplies" ? (
-                    <>
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      생성 중...
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="w-3 h-3 mr-1" />
-                      AI 작성
-                    </>
-                  )}
-                </Button>
-              </div>
-              <CardDescription>수험생이 준비해야 할 물품을 안내합니다.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {supplies.map((item) => (
-                <div key={item.id} className="flex items-center gap-2">
-                  <span className="text-primary">*</span>
-                  <Input
-                    value={item.content}
-                    onChange={(e) => handleUpdateSupply(item.id, e.target.value)}
-                    placeholder="예: 신분증, 수험표, 검은색 사인펜"
-                    className="flex-1"
-                  />
+              {/* 섹션 3: 시험 시간표 */}
+              <section ref={setSectionRef("section-schedule")} className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-foreground">시험 시간표</h2>
                   <Button
                     type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveSupply(item.id)}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => generateFieldMutation.mutate({ fieldName: "schedules", fieldLabel: "시험 시간표" })}
+                    disabled={generatingField === "schedules" || isGeneratingAll}
                   >
-                    <X className="w-4 h-4" />
+                    {generatingField === "schedules" ? (
+                      <>
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        생성 중...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="w-3 h-3 mr-1" />
+                        AI 생성
+                      </>
+                    )}
                   </Button>
                 </div>
-              ))}
-              <Button type="button" variant="outline" size="sm" onClick={handleAddSupply}>
-                <Plus className="w-4 h-4 mr-1" />
-                항목 추가
-              </Button>
-            </CardContent>
-          </Card>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-muted">
+                        <th className="border border-border px-3 py-2 text-left font-medium w-16">교시</th>
+                        <th className="border border-border px-3 py-2 text-left font-medium">시험 영역</th>
+                        <th className="border border-border px-3 py-2 text-left font-medium">시험 시간</th>
+                        <th className="border border-border px-3 py-2 text-left font-medium w-20">문항 수</th>
+                        <th className="border border-border px-3 py-2 text-left font-medium">비고</th>
+                        <th className="border border-border px-3 py-2 w-12"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {schedules.map((row) => (
+                        <tr key={row.id}>
+                          <td className="border border-border px-2 py-1">
+                            <Input
+                              value={row.period}
+                              onChange={(e) => handleUpdateScheduleRow(row.id, "period", e.target.value)}
+                              className="h-8"
+                              placeholder="1"
+                            />
+                          </td>
+                          <td className="border border-border px-2 py-1">
+                            <Input
+                              value={row.subject}
+                              onChange={(e) => handleUpdateScheduleRow(row.id, "subject", e.target.value)}
+                              className="h-8"
+                              placeholder="국어"
+                            />
+                          </td>
+                          <td className="border border-border px-2 py-1">
+                            <Input
+                              value={row.time}
+                              onChange={(e) => handleUpdateScheduleRow(row.id, "time", e.target.value)}
+                              className="h-8"
+                              placeholder="08:40~10:00 (80분)"
+                            />
+                          </td>
+                          <td className="border border-border px-2 py-1">
+                            <Input
+                              value={row.questions}
+                              onChange={(e) => handleUpdateScheduleRow(row.id, "questions", e.target.value)}
+                              className="h-8"
+                              placeholder="45"
+                            />
+                          </td>
+                          <td className="border border-border px-2 py-1">
+                            <Input
+                              value={row.note}
+                              onChange={(e) => handleUpdateScheduleRow(row.id, "note", e.target.value)}
+                              className="h-8"
+                              placeholder="비고"
+                            />
+                          </td>
+                          <td className="border border-border px-2 py-1 text-center">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleRemoveScheduleRow(row.id)}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={handleAddScheduleRow}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  행 추가
+                </Button>
+              </section>
 
-          {/* 섹션 5: 유의사항 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">5</span>
-                유의사항
-              </CardTitle>
-              <CardDescription>전자기기 반입금지 등 중요 유의사항을 안내합니다.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
+              <div className="h-px bg-border" />
+
+              {/* 섹션 4: 준비물 안내 */}
+              <section ref={setSectionRef("section-supplies")} className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-destructive">* 중요</label>
+                  <h2 className="text-sm font-semibold text-foreground">준비물 안내</h2>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => generateFieldMutation.mutate({ fieldName: "supplies", fieldLabel: "준비물" })}
+                    disabled={generatingField === "supplies" || isGeneratingAll}
+                  >
+                    {generatingField === "supplies" ? (
+                      <>
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        생성 중...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="w-3 h-3 mr-1" />
+                        AI 생성
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {supplies.map((item) => (
+                  <div key={item.id} className="flex items-center gap-2">
+                    <span className="text-primary">*</span>
+                    <Input
+                      value={item.content}
+                      onChange={(e) => handleUpdateSupply(item.id, e.target.value)}
+                      placeholder="예: 신분증, 수험표, 검은색 사인펜"
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveSupply(item.id)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" onClick={handleAddSupply}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  항목 추가
+                </Button>
+              </section>
+
+              <div className="h-px bg-border" />
+
+              {/* 섹션 5: 유의사항 */}
+              <section ref={setSectionRef("section-cautions")} className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-foreground">유의사항</h2>
                   <Button
                     type="button"
                     variant="outline"
@@ -713,7 +749,7 @@ export default function SuneungNoticeForm() {
                     ) : (
                       <>
                         <Wand2 className="w-3 h-3 mr-1" />
-                        AI 작성
+                        AI 생성
                       </>
                     )}
                   </Button>
@@ -724,179 +760,141 @@ export default function SuneungNoticeForm() {
                   value={cautions}
                   onChange={(e) => setCautions(e.target.value)}
                 />
-              </div>
-            </CardContent>
-          </Card>
+              </section>
 
-          {/* 섹션 6: 입실 시간 */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">6</span>
-                  입실 시간
-                </CardTitle>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => generateFieldMutation.mutate({ fieldName: "entryTime", fieldLabel: "입실 시간" })}
-                  disabled={generatingField === "entryTime" || isGeneratingAll}
-                >
-                  {generatingField === "entryTime" ? (
-                    <>
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      생성 중...
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="w-3 h-3 mr-1" />
-                      AI 작성
-                    </>
-                  )}
-                </Button>
-              </div>
-              <CardDescription>교시별 입실 시간을 안내합니다.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">1교시 입실</label>
-                  <Input
-                    value={entryTimeFirst}
-                    onChange={(e) => setEntryTimeFirst(e.target.value)}
-                    placeholder="예: 08:10까지"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">2~5교시 입실</label>
-                  <Input
-                    value={entryTimeOthers}
-                    onChange={(e) => setEntryTimeOthers(e.target.value)}
-                    placeholder="예: 시험 시작 10분 전까지"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <div className="h-px bg-border" />
 
-          {/* 섹션 7: 추가 안내 */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">7</span>
-                  추가 안내 항목
-                </CardTitle>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => generateFieldMutation.mutate({ fieldName: "additionalNotes", fieldLabel: "추가 안내" })}
-                  disabled={generatingField === "additionalNotes" || isGeneratingAll}
-                >
-                  {generatingField === "additionalNotes" ? (
-                    <>
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      생성 중...
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="w-3 h-3 mr-1" />
-                      AI 작성
-                    </>
-                  )}
-                </Button>
-              </div>
-              <CardDescription>기타 안내사항을 추가하세요.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {additionalNotes.map((item) => (
-                <div key={item.id} className="flex items-start gap-2">
-                  <span className="text-primary mt-2">*</span>
-                  <Textarea
-                    value={item.content}
-                    onChange={(e) => handleUpdateNote(item.id, e.target.value)}
-                    placeholder="추가 안내사항을 입력하세요"
-                    className="flex-1 min-h-[60px]"
-                  />
+              {/* 섹션 6: 입실 시간 */}
+              <section ref={setSectionRef("section-entry")} className="space-y-4">
+                <h2 className="text-sm font-semibold text-foreground">입실 시간</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">1교시 입실</label>
+                    <Input
+                      value={entryTimeFirst}
+                      onChange={(e) => setEntryTimeFirst(e.target.value)}
+                      placeholder="예: 08:10까지"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">2~5교시 입실</label>
+                    <Input
+                      value={entryTimeOthers}
+                      onChange={(e) => setEntryTimeOthers(e.target.value)}
+                      placeholder="예: 시험 시작 10분 전까지"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <div className="h-px bg-border" />
+
+              {/* 섹션 7: 추가 안내 */}
+              <section ref={setSectionRef("section-notes")} className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-foreground">추가 안내 항목</h2>
                   <Button
                     type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveNote(item.id)}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => generateFieldMutation.mutate({ fieldName: "additionalNotes", fieldLabel: "추가 안내" })}
+                    disabled={generatingField === "additionalNotes" || isGeneratingAll}
                   >
-                    <X className="w-4 h-4" />
+                    {generatingField === "additionalNotes" ? (
+                      <>
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        생성 중...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="w-3 h-3 mr-1" />
+                        AI 생성
+                      </>
+                    )}
                   </Button>
                 </div>
-              ))}
-              <Button type="button" variant="outline" size="sm" onClick={handleAddNote}>
-                <Plus className="w-4 h-4 mr-1" />
-                안내 항목 추가
-              </Button>
-            </CardContent>
-          </Card>
+                {additionalNotes.map((item) => (
+                  <div key={item.id} className="flex items-start gap-2">
+                    <span className="text-primary mt-2">*</span>
+                    <Textarea
+                      value={item.content}
+                      onChange={(e) => handleUpdateNote(item.id, e.target.value)}
+                      placeholder="추가 안내사항을 입력하세요"
+                      className="flex-1 min-h-[60px]"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveNote(item.id)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" onClick={handleAddNote}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  안내 항목 추가
+                </Button>
+              </section>
 
-          {/* 섹션 8: 발행 정보 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">8</span>
-                발행 정보
-              </CardTitle>
-              <CardDescription>발행일과 서명 정보를 입력하세요.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 grid-cols-[160px_1fr]">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">발행 날짜</label>
-                  <Input
-                    type="date"
-                    value={issueDate}
-                    onChange={(e) => setIssueDate(e.target.value)}
-                    className="[&::-webkit-calendar-picker-indicator]:ml-auto"
-                  />
+              <div className="h-px bg-border" />
+
+              {/* 섹션 8: 발행 정보 */}
+              <section ref={setSectionRef("section-issue")} className="space-y-4">
+                <h2 className="text-sm font-semibold text-foreground">발행 정보</h2>
+                <div className="grid gap-4 grid-cols-[160px_1fr]">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">발행 날짜</label>
+                    <Input
+                      type="date"
+                      value={issueDate}
+                      onChange={(e) => setIssueDate(e.target.value)}
+                      className="[&::-webkit-calendar-picker-indicator]:ml-auto"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">학교장 서명</label>
+                    <Input
+                      value={principalSignature}
+                      onChange={(e) => setPrincipalSignature(e.target.value)}
+                      placeholder={signatureText}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">학교장 서명</label>
-                  <Input
-                    value={principalSignature}
-                    onChange={(e) => setPrincipalSignature(e.target.value)}
-                    placeholder={signatureText}
-                  />
-                </div>
+              </section>
+
+              {/* 액션 버튼 */}
+              <div className="flex flex-col gap-3 pt-4 sm:flex-row">
+                <Button type="button" variant="outline" onClick={() => setIsPreviewOpen(true)}>
+                  <Eye className="w-4 h-4 mr-2" />
+                  미리보기
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1"
+                  onClick={() => generateAllMutation.mutate()}
+                  disabled={generateAllMutation.isPending || isGeneratingAll}
+                >
+                  {generateAllMutation.isPending || isGeneratingAll ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      AI 전부 생성 중...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      AI 전부 생성
+                    </>
+                  )}
+                </Button>
+                <Button type="button" variant="secondary" onClick={handleReset}>
+                  초기화
+                </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* 하단 액션 버튼 */}
-          <div className="flex flex-col gap-3 pt-4 sm:flex-row">
-            <Button type="button" variant="outline" onClick={() => setIsPreviewOpen(true)}>
-              <Eye className="w-4 h-4 mr-2" />
-              미리보기
-            </Button>
-            <Button
-              type="button"
-              className="flex-1"
-              onClick={() => generateAllMutation.mutate()}
-              disabled={generateAllMutation.isPending || isGeneratingAll}
-            >
-              {generateAllMutation.isPending || isGeneratingAll ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  AI 전부 생성 중...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  AI 전부 생성
-                </>
-              )}
-            </Button>
-            <Button type="button" variant="secondary" onClick={handleReset}>
-              초기화
-            </Button>
-          </div>
         </div>
       </main>
 

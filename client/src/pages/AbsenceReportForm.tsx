@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Eye, Sparkles, Loader2, Wand2 } from "lucide-react";
 import { Link } from "wouter";
@@ -20,16 +20,20 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { GuideSidebar, AbsenceReportGuide } from "@/components/guide-sidebar";
+import {
+  FormSectionSidebar,
+  type FormSection,
+} from "@/components/form-sidebar";
 
 interface ProfileData {
   schoolName?: string;
 }
 
-const ABSENCE_TYPE_OPTIONS: { id: AbsenceType; label: string; icon: string }[] = [
-  { id: 'illness', label: '질병결석', icon: '🤒' },
-  { id: 'attendance', label: '출석인정', icon: '✅' },
-  { id: 'other', label: '기타결석', icon: '📝' },
-  { id: 'unapproved', label: '미인정결석', icon: '❌' },
+const ABSENCE_TYPE_OPTIONS: { id: AbsenceType; label: string }[] = [
+  { id: 'illness', label: '질병결석' },
+  { id: 'attendance', label: '출석인정' },
+  { id: 'other', label: '기타결석' },
+  { id: 'unapproved', label: '미인정결석' },
 ];
 
 const ABSENCE_TYPE_LABELS: Record<AbsenceType, string> = {
@@ -48,13 +52,42 @@ const EVIDENCE_OPTIONS = [
   { id: 'other', label: '기타' },
 ];
 
+// 섹션 정의
+const FORM_SECTIONS: FormSection[] = [
+  { id: "section-student", number: 1, title: "학생 정보" },
+  { id: "section-type", number: 2, title: "결석 종류" },
+  { id: "section-period", number: 3, title: "결석 기간" },
+  { id: "section-reason", number: 4, title: "결석 사유" },
+  { id: "section-evidence", number: 5, title: "증빙서류" },
+  { id: "section-parent", number: 6, title: "보호자 정보" },
+  { id: "section-submit", number: 7, title: "제출일" },
+];
+
 export default function AbsenceReportForm() {
   const { toast } = useToast();
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [generatingField, setGeneratingField] = useState<string | null>(null);
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+  const [activeSection, setActiveSection] = useState<string>("section-student");
   const documentRef = useRef<HTMLDivElement>(null);
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  // 섹션으로 스크롤
+  const scrollToSection = useCallback((sectionId: string) => {
+    const el = sectionRefs.current[sectionId];
+    if (el) {
+      const y = el.getBoundingClientRect().top + window.pageYOffset - 100;
+      window.scrollTo({ top: y, behavior: "smooth" });
+      setActiveSection(sectionId);
+    }
+  }, []);
+
+  // ref 설정 헬퍼
+  const setSectionRef = useCallback((id: string) => (el: HTMLElement | null) => {
+    sectionRefs.current[id] = el;
+  }, []);
 
   // 폼 상태
   const [grade, setGrade] = useState("");
@@ -152,8 +185,8 @@ export default function AbsenceReportForm() {
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/documents/generate-field", {
         documentType: "결석신고서",
-        fieldName: "reason",
-        fieldLabel: "결석 사유",
+        fieldName: "allFields",
+        fieldLabel: "전체 필드",
         context: {
           schoolName,
           grade,
@@ -166,17 +199,40 @@ export default function AbsenceReportForm() {
           parentName,
         },
       });
-      return response.json();
+      const data = await response.json();
+      // Parse JSON if string
+      let parsed = data.generatedContent;
+      if (typeof parsed === "string") {
+        try {
+          parsed = JSON.parse(parsed);
+        } catch {
+          // If parsing fails, treat as reason only
+          return { reason: parsed };
+        }
+      }
+      return parsed;
     },
     onMutate: () => {
       setIsGeneratingAll(true);
     },
-    onSuccess: (data) => {
-      const generatedContent = String(data.generatedContent || "").trim();
-      setReason(generatedContent);
+    onSuccess: (data: { reason?: string; suggestedEvidence?: string[] }) => {
+      // 결석 사유 설정
+      if (data.reason) {
+        setReason(String(data.reason).trim());
+      }
+      // 추천 증빙서류 설정
+      if (data.suggestedEvidence && Array.isArray(data.suggestedEvidence)) {
+        // 기존 선택된 것과 병합하지 않고 새로 설정
+        const validEvidence = data.suggestedEvidence.filter(
+          (id) => EVIDENCE_OPTIONS.some((opt) => opt.id === id)
+        );
+        if (validEvidence.length > 0) {
+          setEvidenceList(validEvidence);
+        }
+      }
       toast({
         title: "AI 전체 생성 완료",
-        description: "결석 사유가 생성되었습니다. 필요시 수정해주세요.",
+        description: "결석 사유와 증빙서류가 생성되었습니다. 필요시 수정해주세요.",
       });
     },
     onError: (error: Error) => {
@@ -228,40 +284,57 @@ export default function AbsenceReportForm() {
 
   return (
     <div className="min-h-screen bg-background relative">
-      <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50 h-[73px]">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" asChild data-testid="button-back">
-                <Link href="/">
-                  <ArrowLeft className="w-5 h-5" />
-                </Link>
-              </Button>
-              <div>
-                <h1 className="text-lg font-semibold text-foreground">결석신고서 작성</h1>
-                <p className="text-sm text-muted-foreground">학생 정보와 결석 사유를 입력해주세요</p>
-              </div>
+      {/* 좌측 사이드바: 섹션 목록 */}
+      <FormSectionSidebar
+        isOpen={leftSidebarOpen}
+        onToggle={() => setLeftSidebarOpen(!leftSidebarOpen)}
+        documentTitle="결석신고서"
+        sections={FORM_SECTIONS}
+        activeSection={activeSection}
+        onSectionClick={scrollToSection}
+      />
+
+      {/* 상단 헤더 */}
+      <header
+        className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-40 h-[73px] transition-all duration-300"
+        style={{ marginLeft: leftSidebarOpen ? "256px" : "0" }}
+      >
+        <div className="max-w-4xl mx-auto px-6 h-full flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild data-testid="button-back">
+              <Link href="/">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-lg font-semibold text-foreground">결석신고서 작성</h1>
+              <p className="text-sm text-muted-foreground">학생 정보와 결석 사유를 입력해주세요</p>
             </div>
-            <PDFDownloadButton
-              contentRef={documentRef}
-              fileName={pdfFileName}
-            />
           </div>
+          <PDFDownloadButton
+            contentRef={documentRef}
+            fileName={pdfFileName}
+          />
         </div>
       </header>
 
-      <main className={`max-w-4xl mx-auto px-6 py-8 transition-all duration-300 ${isSidebarOpen ? 'mr-[360px]' : ''}`}>
+      {/* 메인 폼 영역 */}
+      <main
+        className="px-6 py-8 transition-all duration-300"
+        style={{
+          marginLeft: leftSidebarOpen ? "256px" : "0",
+          marginRight: isSidebarOpen ? "360px" : "0",
+        }}
+      >
+        <div className="max-w-4xl mx-auto">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              결석신고서 정보 입력
-            </CardTitle>
+            <CardTitle>결석신고서 정보 입력</CardTitle>
             <CardDescription>학생 정보와 결석 내용을 입력하세요. AI가 결석 사유를 작성해드립니다.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* 학생 정보 섹션 */}
-            <section className="space-y-3">
+            <section ref={setSectionRef("section-student")} className="space-y-3">
               <h2 className="text-sm font-semibold text-foreground">학생 정보</h2>
               <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
                 <div className="space-y-2">
@@ -313,7 +386,7 @@ export default function AbsenceReportForm() {
             <div className="h-px bg-border" />
 
             {/* 결석 종류 섹션 */}
-            <section className="space-y-3">
+            <section ref={setSectionRef("section-type")} className="space-y-3">
               <h2 className="text-sm font-semibold text-foreground">결석 종류</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {ABSENCE_TYPE_OPTIONS.map((option) => (
@@ -322,14 +395,13 @@ export default function AbsenceReportForm() {
                     type="button"
                     onClick={() => setAbsenceType(option.id)}
                     className={`
-                      flex flex-col items-center p-4 rounded-xl border-2 transition-all
+                      flex items-center justify-center p-4 rounded-xl border-2 transition-all
                       ${absenceType === option.id
                         ? 'border-primary bg-primary/5'
                         : 'border-border hover:border-primary/50'
                       }
                     `}
                   >
-                    <span className="text-2xl mb-2">{option.icon}</span>
                     <span className={`text-sm font-medium ${absenceType === option.id ? 'text-primary' : 'text-foreground'}`}>
                       {option.label}
                     </span>
@@ -341,7 +413,7 @@ export default function AbsenceReportForm() {
             <div className="h-px bg-border" />
 
             {/* 결석 기간 섹션 */}
-            <section className="space-y-3">
+            <section ref={setSectionRef("section-period")} className="space-y-3">
               <DateRangePicker
                 label="결석 기간"
                 value={absencePeriod}
@@ -357,7 +429,7 @@ export default function AbsenceReportForm() {
             <div className="h-px bg-border" />
 
             {/* 결석 사유 섹션 */}
-            <section className="space-y-3">
+            <section ref={setSectionRef("section-reason")} className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-foreground">결석 사유</h2>
                 <Button
@@ -375,7 +447,7 @@ export default function AbsenceReportForm() {
                   ) : (
                     <>
                       <Wand2 className="w-3 h-3 mr-1" />
-                      AI 작성
+                      AI 생성
                     </>
                   )}
                 </Button>
@@ -391,7 +463,7 @@ export default function AbsenceReportForm() {
             <div className="h-px bg-border" />
 
             {/* 증빙서류 섹션 */}
-            <section className="space-y-3">
+            <section ref={setSectionRef("section-evidence")} className="space-y-3">
               <h2 className="text-sm font-semibold text-foreground">증빙서류 (선택)</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {EVIDENCE_OPTIONS.map((option) => (
@@ -422,7 +494,7 @@ export default function AbsenceReportForm() {
             <div className="h-px bg-border" />
 
             {/* 보호자 정보 섹션 */}
-            <section className="space-y-3">
+            <section ref={setSectionRef("section-parent")} className="space-y-3">
               <h2 className="text-sm font-semibold text-foreground">보호자 정보</h2>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
@@ -450,7 +522,7 @@ export default function AbsenceReportForm() {
             <div className="h-px bg-border" />
 
             {/* 제출일 섹션 */}
-            <section className="space-y-3">
+            <section ref={setSectionRef("section-submit")} className="space-y-3">
               <h2 className="text-sm font-semibold text-foreground">제출일</h2>
               <Input
                 type="date"
@@ -490,6 +562,7 @@ export default function AbsenceReportForm() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </main>
 
       {/* 미리보기 모달 */}

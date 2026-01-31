@@ -738,6 +738,80 @@ ${contextDescription || "안내 내용을 작성하기 위한 기본 정보가 �
 아래 JSON 배열만 출력하세요. 코드블록/설명 텍스트 금지:
 ["급식 신청 및 취소는 전월 1일~5일 사이에 진행됩니다.","학교에서 인정하는 장기결석은 증빙 제출 시 환불 가능합니다."]
 `;
+        } else if (fieldName === "paymentMethod") {
+          prompt = `당신은 학교 급식 담당 영양(교)사입니다.
+급식비 납부 방법을 작성해주세요.
+
+[입력 정보]
+${contextDescription || ""}
+
+[작성 지침]
+- 일반적인 학교 급식비 납부 방법 안내
+- 스쿨뱅킹, 가상계좌, 신용카드 등 일반적인 방법 중 선택
+- 간결하게 1-2줄로 작성
+
+납부 방법 텍스트만 출력:`;
+        } else if (fieldName === "mealPeriod") {
+          const academicYear = context?.academicYear || "2025학년도";
+          const month = context?.month || "4월";
+
+          prompt = `급식 기간을 JSON으로 생성하세요.
+
+[입력 정보]
+- 학년도: ${academicYear}
+- 월: ${month}
+
+[규칙]
+- 해당 월의 실제 급식 운영 기간 (보통 월초~월말, 주말/공휴일 제외)
+- 날짜는 YYYY-MM-DD 형식
+
+다음 JSON만 출력:
+{"start":"2025-04-01","end":"2025-04-30"}`;
+        } else if (fieldName === "paymentPeriod") {
+          const academicYear = context?.academicYear || "2025학년도";
+          const month = context?.month || "4월";
+
+          prompt = `급식비 납부기간을 JSON으로 생성하세요.
+
+[입력 정보]
+- 학년도: ${academicYear}
+- 월: ${month}
+
+[규칙]
+- 보통 전월 말 또는 해당 월 초에 납부
+- 날짜는 YYYY-MM-DD 형식
+
+다음 JSON만 출력:
+{"start":"2025-03-25","end":"2025-03-31"}`;
+        } else if (fieldName === "allFields") {
+          const academicYear = context?.academicYear || "2025학년도";
+          const month = context?.month || "4월";
+
+          prompt = `당신은 학교 급식 담당 영양(교)사입니다.
+급식안내문의 모든 필드를 JSON으로 생성하세요.
+
+[입력 정보]
+- 학년도: ${academicYear}
+- 월: ${month}
+${contextDescription || ""}
+
+다음 형식의 JSON으로 생성하세요:
+{
+  "greeting": "학부모님께 전달할 인사말 (3-5문장, 격식체)",
+  "mealPeriod": {"start":"YYYY-MM-DD","end":"YYYY-MM-DD"},
+  "paymentPeriod": {"start":"YYYY-MM-DD","end":"YYYY-MM-DD"},
+  "paymentMethod": "납부 방법 (예: 스쿨뱅킹)",
+  "paymentDetails": [{"grade":"1학년","category":"석식","calculation":"20일*5,900원","amount":"118,000원","note":""}],
+  "notices": ["안내사항1", "안내사항2"]
+}
+
+- mealPeriod: 해당 월의 급식 기간
+- paymentPeriod: 급식비 납부 기간 (보통 전월 말)
+- paymentMethod: 일반적인 납부 방법
+- paymentDetails: 학년별 납부내역 1-3개
+- notices: 추가 안내사항 2-4개
+
+JSON만 출력:`;
         }
       } else if (documentType === "수능/모의평가 안내") {
         // 랜덤 스타일 선택을 위한 옵션들
@@ -746,7 +820,27 @@ ${contextDescription || "안내 내용을 작성하기 위한 기본 정보가 �
         const startOptions = ["계절인사로 시작", "감사인사로 시작", "시험안내로 바로 시작", "학교 교육철학으로 시작"];
         const randomStart = startOptions[Math.floor(Math.random() * startOptions.length)];
 
-        if (fieldName === "greeting") {
+        if (fieldName === "basicInfo") {
+          // 기본정보 생성
+          const examTypes = ["대학수학능력시험", "6월 모의평가", "9월 모의평가", "3월 모의고사", "4월 모의고사", "7월 모의고사", "10월 모의고사"];
+          const randomExamType = examTypes[Math.floor(Math.random() * examTypes.length)];
+          const currentYear = new Date().getFullYear();
+
+          prompt = `[기본정보 생성]
+다음 형식의 JSON으로 기본정보를 생성하세요:
+
+{
+  "academicYear": "${currentYear}학년도",
+  "examType": "${randomExamType}",
+  "examDate": "2026-11-14"
+}
+
+- academicYear: 학년도 (예: 2026학년도)
+- examType: 시험 유형 (대학수학능력시험, 6월 모의평가, 9월 모의평가 등)
+- examDate: 시험 날짜 (YYYY-MM-DD 형식)
+
+JSON만 출력:`;
+        } else if (fieldName === "greeting") {
           prompt = `[핵심 지시] 참고 문서의 실제 인사말을 분석하고, 그 스타일을 차용하여 새로운 인사말을 작성하세요.
 
 [입력 정보]
@@ -900,6 +994,57 @@ ${selectedTopics.map((t, i) => `${i + 1}. ${t}`).join("\n")}
 [출력 형식]
 반드시 아래와 같은 JSON 문자열 배열 형식으로만 출력하세요. 코드블록(\`\`\`) 없이 순수 JSON만:
 ["첫번째 안내사항입니다.","두번째 안내사항입니다.","세번째 안내사항입니다."]`;
+        }
+      } else if (documentType === "결석신고서") {
+        // 결석신고서 필드 생성
+        const absenceType = context?.absenceType || "질병결석";
+        const period = context?.period || "";
+        const studentName = context?.studentName || "학생";
+
+        if (fieldName === "reason") {
+          const reasonStyles = ["상세형", "간결형", "의료중심형"];
+          const randomStyle = reasonStyles[Math.floor(Math.random() * reasonStyles.length)];
+
+          prompt = `[결석 사유 작성]
+
+[입력 정보]
+- 학생명: ${studentName}
+- 결석 종류: ${absenceType}
+- 결석 기간: ${period}
+${contextDescription || ""}
+
+[작성 스타일: ${randomStyle}]
+
+[규칙]
+1. 참고 문서의 결석 사유 표현을 분석하고 적절한 표현 사용
+2. 결석 종류에 맞는 적절한 사유 작성
+3. ${randomStyle === "상세형" ? "증상, 치료 과정 등 상세히 기술 (3-5문장)" : randomStyle === "간결형" ? "핵심 사유만 간결하게 (1-2문장)" : "의료적 증상과 치료 중심으로 기술 (2-3문장)"}
+4. 학교 공문서에 적합한 격식체 사용
+
+결석 사유만 출력:`;
+        } else if (fieldName === "allFields") {
+          prompt = `[결석신고서 전체 필드 생성]
+
+[입력 정보]
+- 학생명: ${studentName}
+- 결석 종류: ${absenceType}
+- 결석 기간: ${period}
+${contextDescription || ""}
+
+다음 형식의 JSON으로 생성하세요:
+{
+  "reason": "결석 사유 (2-3문장, 격식체, 학교 공문서 스타일)",
+  "suggestedEvidence": ["추천 증빙서류1", "추천 증빙서류2"]
+}
+
+- reason: 결석 종류에 맞는 적절한 사유 (증상, 치료 과정 포함)
+- suggestedEvidence: 결석 종류에 맞는 증빙서류 추천 (아래 목록에서 선택)
+  - 질병결석: ["medical", "prescription"] (진료확인서, 처방전)
+  - 입원: ["hospitalization", "medical"] (입원확인서, 진료확인서)
+  - 출석인정: ["official", "consent"] (공문, 학부모 확인서)
+  - 기타/미인정: ["consent"] (학부모 확인서)
+
+JSON만 출력:`;
         }
       } else if (documentType === "외부 교육 용역 계획서") {
         if (fieldName === "objectives") {
@@ -1070,20 +1215,13 @@ ${contextDescription}
 작품 설명만 출력:`;
         } else if (fieldName === "allFields") {
           // 전체 필드 생성 - JSON 형태로 반환
-          const programType = (context as Record<string, string>)?.programType || "contest";
-          const programTypeLabels: Record<string, string> = {
-            contest: "공모전/대회",
-            camp: "캠프/교실",
-            experience: "체험학습/견학",
-            education: "교육/연수",
-            other: "기타"
-          };
+          const programType = (context as Record<string, string>)?.programType || "";
 
           prompt = `[역할] 학교 참가 신청서 작성 도우미
 
-[작업] 아래 프로그램 유형에 맞는 참가 신청서 예시 데이터를 JSON으로 생성하세요.
+[작업] 참가 신청서 예시 데이터를 JSON으로 생성하세요.
 
-[프로그램 유형] ${programTypeLabels[programType] || programType}
+[프로그램 유형] ${programType || "공모전, 캠프, 체험학습 중 랜덤 선택"}
 
 [생성 규칙]
 - 실제 학교에서 사용할 법한 자연스러운 예시 데이터 생성
@@ -1097,6 +1235,7 @@ ${contextDescription}
 [출력 형식] 아래 JSON 형식으로만 출력 (다른 텍스트 없이, 모든 필드 필수):
 {
   "programName": "프로그램명",
+  "programType": "프로그램 유형 (예: 공모전, 캠프, 체험학습, 교육연수)",
   "organizer": "주최기관명",
   "participationCategory": "참가 부문/대상 학년",
   "capacity": "모집 인원 (예: 20명)",
@@ -1120,6 +1259,121 @@ ${contextDescription}
   "workDescription": "작품/활동 설명 (2-3문장, 필수)",
   "notices": "• 유의사항1\\n• 유의사항2\\n• 유의사항3",
   "recipient": "수신자 귀하"
+}
+
+JSON만 출력:`;
+        }
+      } else if (documentType === "채용공고") {
+        const positions = (context as Record<string, unknown>)?.positions as Array<{ jobType?: string; contractType?: string }> | undefined;
+        const jobType = positions?.[0]?.jobType || "";
+        const contractType = positions?.[0]?.contractType || "";
+        const salaryType = (context as Record<string, string>)?.salaryType || "";
+
+        if (fieldName === "duties") {
+          prompt = `[핵심 지시] 참고 문서의 실제 담당업무를 분석하고 스타일을 차용하세요.
+
+[입력 정보]
+- 채용직종: ${jobType}
+- 계약유형: ${contractType}
+${contextDescription}
+
+[작성 지침]
+- ${jobType} 직종에 맞는 구체적인 담당업무 작성
+- 3-5개 항목으로 작성
+- 각 항목은 "- "로 시작
+- 실제 학교에서 사용하는 업무 내용 반영
+
+담당업무만 출력:`;
+        } else if (fieldName === "salaryNote") {
+          prompt = `[핵심 지시] 참고 문서의 실제 보수 관련 비고를 분석하고 스타일을 차용하세요.
+
+[입력 정보]
+- 채용직종: ${jobType}
+- 계약유형: ${contractType}
+- 보수유형: ${salaryType}
+${contextDescription}
+
+[작성 지침]
+- 교육공무직원 보수 규정에 따른 안내 작성
+- 호봉, 수당, 4대보험 등 관련 내용 포함
+- 2-3문장으로 간결하게 작성
+
+보수 관련 비고만 출력:`;
+        } else if (fieldName === "otherQualifications") {
+          prompt = `[핵심 지시] 참고 문서의 실제 응시자격을 분석하고 스타일을 차용하세요.
+
+[입력 정보]
+- 채용직종: ${jobType}
+- 계약유형: ${contractType}
+${contextDescription}
+
+[작성 지침]
+- ${jobType} 직종에 필요한 기타 응시자격 작성
+- 학력, 경력, 자격증 외 기타 요건
+- 결격사유 조항은 제외 (별도 안내)
+- 3-5개 항목, 각 항목은 "- "로 시작
+
+기타 응시자격만 출력:`;
+        } else if (fieldName === "preferredConditions") {
+          prompt = `[핵심 지시] 참고 문서의 실제 우대사항을 분석하고 스타일을 차용하세요.
+
+[입력 정보]
+- 채용직종: ${jobType}
+- 계약유형: ${contractType}
+${contextDescription}
+
+[작성 지침]
+- ${jobType} 직종에 적합한 우대사항 작성
+- 관련 경력, 자격증, 역량 등 포함
+- 3-4개 항목, 각 항목은 "- "로 시작
+
+우대사항만 출력:`;
+        } else if (fieldName === "allFields") {
+          prompt = `[역할] 학교 채용공고 작성 도우미
+
+[작업] 채용공고의 모든 필드를 JSON으로 생성하세요.
+
+[입력 정보]
+- 채용직종: ${jobType || "조리실무사"}
+- 계약유형: ${contractType || "무기계약직"}
+- 보수유형: ${salaryType || "월급제"}
+${contextDescription}
+
+[생성 규칙]
+- 실제 학교 채용공고에서 사용하는 자연스러운 표현 사용
+- 참고 문서의 스타일과 어휘 차용
+- 직종에 맞는 구체적인 내용 생성
+- 모든 필드를 반드시 포함
+
+[출력 형식] 아래 JSON 형식으로만 출력 (모든 필드 필수):
+{
+  "schoolName": "학교명 (예: ○○고등학교)",
+  "noticeNumber": "공고번호 (예: 제2026-1호)",
+  "jobType": "채용직종 (예: 조리실무사)",
+  "headcount": 1,
+  "contractType": "계약유형 (예: 무기계약직)",
+  "duties": "담당업무 (줄바꿈으로 구분, 각 항목 - 로 시작, 3-5개)",
+  "workTimeStart": "근무시작시간 (예: 08:30)",
+  "workTimeEnd": "근무종료시간 (예: 16:30)",
+  "breakTime": "휴게시간 분 단위 (예: 60)",
+  "workPlace": "근무장소 (예: ○○고등학교 급식실)",
+  "salaryType": "보수유형 (월급제 또는 시급제)",
+  "salaryAmount": "보수금액 (예: 2,500,000)",
+  "salaryNote": "보수 관련 비고 (2-3문장)",
+  "minAge": "최소연령 (예: 18)",
+  "retirementAge": "정년 (예: 60)",
+  "otherQualifications": "기타 응시자격 (줄바꿈으로 구분, 각 항목 - 로 시작, 3-5개)",
+  "preferredConditions": "우대사항 (줄바꿈으로 구분, 각 항목 - 로 시작, 3-4개)",
+  "schedules": [
+    {"stage": "접수기간", "datetime": "2026-02-01T09:00", "note": "평일 09:00~16:00"},
+    {"stage": "서류전형 발표", "datetime": "2026-02-10T14:00", "note": "합격자 개별통보"},
+    {"stage": "면접전형", "datetime": "2026-02-15T10:00", "note": "본교 회의실"},
+    {"stage": "최종합격자 발표", "datetime": "2026-02-20T14:00", "note": "합격자 개별통보"}
+  ],
+  "contactDepartment": "담당부서 (예: 행정실)",
+  "contactPhone": "연락처 (예: 02-000-0000)",
+  "selectedFirstDocs": ["application", "selfIntro", "privacyConsent"],
+  "selectedFinalDocs": ["resident", "health", "noDisqualification", "sexCrime"]
 }
 
 JSON만 출력:`;
@@ -1288,9 +1542,16 @@ JSON만 출력:`;
         return res.status(500).json({ error: "AI API 키가 설정되지 않았습니다." });
       }
 
-      res.json({ 
-        fieldName, 
-        generatedContent: generatedText.trim() 
+      // Strip markdown code fences if present
+      let cleanedText = generatedText.trim();
+      const codeBlockMatch = cleanedText.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+      if (codeBlockMatch) {
+        cleanedText = codeBlockMatch[1].trim();
+      }
+
+      res.json({
+        fieldName,
+        generatedContent: cleanedText
       });
     } catch (error) {
       console.error("Error generating field content:", error);

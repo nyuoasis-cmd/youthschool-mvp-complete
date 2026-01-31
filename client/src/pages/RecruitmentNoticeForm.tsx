@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Sparkles, Loader2, Wand2, Eye, Plus, X, Check, ListChecks } from "lucide-react";
+import { ArrowLeft, Sparkles, Loader2, Wand2, Eye, Plus, X, Check } from "lucide-react";
 import { Link } from "wouter";
 import PDFDownloadButton from "@/components/PDFDownloadButton";
 import RecruitmentNoticePreview from "@/components/RecruitmentNoticePreview";
@@ -28,6 +28,10 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { GuideSidebar, RecruitmentNoticeGuide } from "@/components/guide-sidebar";
+import {
+  FormSectionSidebar,
+  type FormSection,
+} from "@/components/form-sidebar";
 import { cn } from "@/lib/utils";
 
 // 타입 정의
@@ -51,13 +55,12 @@ interface ScheduleItem {
 }
 
 // 섹션 정의
-const sections = [
-  { id: "basic", label: "기본 정보", number: 1 },
-  { id: "overview", label: "채용 개요", number: 2 },
-  { id: "conditions", label: "근로 조건", number: 3 },
-  { id: "qualifications", label: "응시 자격", number: 4 },
-  { id: "schedule", label: "채용 일정", number: 5 },
-  { id: "documents", label: "제출 서류", number: 6 },
+const FORM_SECTIONS: FormSection[] = [
+  { id: "overview", number: 1, title: "채용 개요" },
+  { id: "conditions", number: 2, title: "근로 조건" },
+  { id: "qualifications", number: 3, title: "응시 자격" },
+  { id: "schedule", number: 4, title: "채용 일정" },
+  { id: "documents", number: 5, title: "제출 서류" },
 ];
 
 // 시도교육청 목록
@@ -134,12 +137,12 @@ const createScheduleItem = (stage: string): ScheduleItem => ({
 
 export default function RecruitmentNoticeForm() {
   const { toast } = useToast();
-  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
+  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [generatingField, setGeneratingField] = useState<string | null>(null);
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
-  const [activeSection, setActiveSection] = useState("basic");
+  const [activeSection, setActiveSection] = useState("overview");
   const documentRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
@@ -155,9 +158,9 @@ export default function RecruitmentNoticeForm() {
   // 섹션 3: 근로 조건
   const [contractPeriod, setContractPeriod] = useState<DateRangeValue>({ start: "", end: "" });
   const [isUntilRetirement, setIsUntilRetirement] = useState(false);
-  const [workTimeStart, setWorkTimeStart] = useState("08:30");
-  const [workTimeEnd, setWorkTimeEnd] = useState("16:30");
-  const [breakTime, setBreakTime] = useState("60");
+  const [workTimeStart, setWorkTimeStart] = useState("");
+  const [workTimeEnd, setWorkTimeEnd] = useState("");
+  const [breakTime, setBreakTime] = useState("");
   const [workPlace, setWorkPlace] = useState("");
   const [salaryType, setSalaryType] = useState("");
   const [salaryAmount, setSalaryAmount] = useState("");
@@ -166,7 +169,7 @@ export default function RecruitmentNoticeForm() {
 
   // 섹션 4: 응시 자격
   const [minAge, setMinAge] = useState("");
-  const [retirementAge, setRetirementAge] = useState("60");
+  const [retirementAge, setRetirementAge] = useState("");
   const [requiredCertificates, setRequiredCertificates] = useState<string[]>([]);
   const [certificateInput, setCertificateInput] = useState("");
   const [otherQualifications, setOtherQualifications] = useState("");
@@ -183,12 +186,8 @@ export default function RecruitmentNoticeForm() {
   const [contactPhone, setContactPhone] = useState("");
 
   // 섹션 6: 제출 서류
-  const [selectedFirstDocs, setSelectedFirstDocs] = useState<string[]>(
-    firstSubmissionDocs.filter(d => d.default).map(d => d.id)
-  );
-  const [selectedFinalDocs, setSelectedFinalDocs] = useState<string[]>(
-    finalSubmissionDocs.filter(d => d.default).map(d => d.id)
-  );
+  const [selectedFirstDocs, setSelectedFirstDocs] = useState<string[]>([]);
+  const [selectedFinalDocs, setSelectedFinalDocs] = useState<string[]>([]);
 
   // 프로필 데이터 가져오기
   const { data: profile } = useQuery<ProfileData>({
@@ -206,11 +205,6 @@ export default function RecruitmentNoticeForm() {
   // 섹션 완료 여부 계산
   const completedSections = useMemo(() => {
     const completed: string[] = [];
-
-    // 기본 정보
-    if (schoolName && noticeNumber && noticeDate) {
-      completed.push("basic");
-    }
 
     // 채용 개요
     if (positions.some(p => p.jobType && p.contractType)) {
@@ -243,35 +237,21 @@ export default function RecruitmentNoticeForm() {
   }, [schoolName, noticeNumber, noticeDate, positions, contractPeriod, isUntilRetirement, workPlace, otherQualifications, requiredCertificates, schedules, selectedFirstDocs, selectedFinalDocs]);
 
   // 스크롤 감지 및 활성 섹션 업데이트
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollPosition = window.scrollY + 150;
-
-      for (const section of sections) {
-        const element = sectionRefs.current[section.id];
-        if (element) {
-          const { offsetTop, offsetHeight } = element;
-          if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
-            setActiveSection(section.id);
-            break;
-          }
-        }
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   // 섹션으로 스크롤
-  const scrollToSection = (sectionId: string) => {
+  const scrollToSection = useCallback((sectionId: string) => {
     const element = sectionRefs.current[sectionId];
     if (element) {
       const yOffset = -100;
       const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
       window.scrollTo({ top: y, behavior: "smooth" });
+      setActiveSection(sectionId);
     }
-  };
+  }, []);
+
+  // ref 설정 헬퍼
+  const setSectionRef = useCallback((id: string) => (el: HTMLElement | null) => {
+    sectionRefs.current[id] = el;
+  }, []);
 
   // 채용 직종 추가/삭제/수정
   const handleAddPosition = () => {
@@ -375,56 +355,88 @@ export default function RecruitmentNoticeForm() {
   // AI 전부 생성 mutation
   const generateAllMutation = useMutation({
     mutationFn: async () => {
-      const fields = [
-        { fieldName: "duties", fieldLabel: "담당업무" },
-        { fieldName: "salaryNote", fieldLabel: "보수 관련 비고" },
-        { fieldName: "otherQualifications", fieldLabel: "기타 응시자격" },
-        { fieldName: "preferredConditions", fieldLabel: "우대사항" },
-      ];
+      const response = await apiRequest("POST", "/api/documents/generate-field", {
+        documentType: "채용공고",
+        fieldName: "allFields",
+        fieldLabel: "전체 필드",
+        context: {
+          schoolName,
+          educationOffice,
+          positions: positions.map(p => ({ jobType: p.jobType, contractType: p.contractType })),
+          salaryType,
+        },
+      });
 
-      const results: Array<{ fieldName: string; generatedContent: string }> = [];
-
-      for (const field of fields) {
-        const response = await apiRequest("POST", "/api/documents/generate-field", {
-          documentType: "채용공고",
-          fieldName: field.fieldName,
-          fieldLabel: field.fieldLabel,
-          context: {
-            schoolName,
-            educationOffice,
-            positions: positions.map(p => ({ jobType: p.jobType, contractType: p.contractType })),
-            salaryType,
-          },
-        });
-
-        const data = await response.json();
-        if (data.error) {
-          throw new Error(data.error);
-        }
-
-        results.push({
-          fieldName: data.fieldName || field.fieldName,
-          generatedContent: String(data.generatedContent || "").trim(),
-        });
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
       }
 
-      return results;
+      // JSON 파싱
+      const generatedContent = String(data.generatedContent || "").trim();
+      let jsonStr = generatedContent;
+      const jsonMatch = generatedContent.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        jsonStr = jsonMatch[1].trim();
+      }
+
+      return JSON.parse(jsonStr);
     },
     onMutate: () => {
       setIsGeneratingAll(true);
     },
-    onSuccess: (results) => {
-      results.forEach(({ fieldName, generatedContent }) => {
-        if (fieldName === "duties" && positions.length > 0) {
-          handleUpdatePosition(positions[0].id, "duties", generatedContent);
-        } else if (fieldName === "salaryNote") {
-          setSalaryNote(generatedContent);
-        } else if (fieldName === "otherQualifications") {
-          setOtherQualifications(generatedContent);
-        } else if (fieldName === "preferredConditions") {
-          setPreferredConditions(generatedContent);
-        }
-      });
+    onSuccess: (data: Record<string, unknown>) => {
+      // 기본 정보
+      if (data.schoolName) setSchoolName(String(data.schoolName));
+      if (data.noticeNumber) setNoticeNumber(String(data.noticeNumber));
+
+      // 채용 개요
+      if (data.jobType || data.contractType || data.duties) {
+        const newPosition = {
+          ...positions[0],
+          jobType: String(data.jobType || positions[0].jobType),
+          headcount: Number(data.headcount) || positions[0].headcount,
+          contractType: String(data.contractType || positions[0].contractType),
+          duties: String(data.duties || positions[0].duties),
+        };
+        setPositions([newPosition]);
+      }
+
+      // 근로 조건
+      if (data.workTimeStart) setWorkTimeStart(String(data.workTimeStart));
+      if (data.workTimeEnd) setWorkTimeEnd(String(data.workTimeEnd));
+      if (data.breakTime) setBreakTime(String(data.breakTime));
+      if (data.workPlace) setWorkPlace(String(data.workPlace));
+      if (data.salaryType) setSalaryType(String(data.salaryType));
+      if (data.salaryAmount) setSalaryAmount(String(data.salaryAmount));
+      if (data.salaryNote) setSalaryNote(String(data.salaryNote));
+
+      // 응시 자격
+      if (data.minAge) setMinAge(String(data.minAge));
+      if (data.retirementAge) setRetirementAge(String(data.retirementAge));
+      if (data.otherQualifications) setOtherQualifications(String(data.otherQualifications));
+      if (data.preferredConditions) setPreferredConditions(String(data.preferredConditions));
+
+      // 채용 일정
+      if (Array.isArray(data.schedules)) {
+        const newSchedules = (data.schedules as Array<{ stage: string; datetime: string; note: string }>).map((s, i) => ({
+          id: schedules[i]?.id || `${Date.now()}-${i}`,
+          stage: s.stage || schedules[i]?.stage || "",
+          datetime: s.datetime || "",
+          note: s.note || "",
+        }));
+        setSchedules(newSchedules);
+      }
+      if (data.contactDepartment) setContactDepartment(String(data.contactDepartment));
+      if (data.contactPhone) setContactPhone(String(data.contactPhone));
+
+      // 제출 서류 (랜덤 체크)
+      if (Array.isArray(data.selectedFirstDocs)) {
+        setSelectedFirstDocs(data.selectedFirstDocs as string[]);
+      }
+      if (Array.isArray(data.selectedFinalDocs)) {
+        setSelectedFinalDocs(data.selectedFinalDocs as string[]);
+      }
 
       toast({
         title: "AI 전부 생성 완료",
@@ -452,16 +464,16 @@ export default function RecruitmentNoticeForm() {
     setPositions([createPositionItem()]);
     setContractPeriod({ start: "", end: "" });
     setIsUntilRetirement(false);
-    setWorkTimeStart("08:30");
-    setWorkTimeEnd("16:30");
-    setBreakTime("60");
+    setWorkTimeStart("");
+    setWorkTimeEnd("");
+    setBreakTime("");
     setWorkPlace("");
     setSalaryType("");
     setSalaryAmount("");
     setSalaryUnit("원/월");
     setSalaryNote("");
     setMinAge("");
-    setRetirementAge("60");
+    setRetirementAge("");
     setRequiredCertificates([]);
     setCertificateInput("");
     setOtherQualifications("");
@@ -474,8 +486,8 @@ export default function RecruitmentNoticeForm() {
     ]);
     setContactDepartment("");
     setContactPhone("");
-    setSelectedFirstDocs(firstSubmissionDocs.filter(d => d.default).map(d => d.id));
-    setSelectedFinalDocs(finalSubmissionDocs.filter(d => d.default).map(d => d.id));
+    setSelectedFirstDocs([]);
+    setSelectedFinalDocs([]);
   };
 
   // PDF 파일명
@@ -512,191 +524,59 @@ export default function RecruitmentNoticeForm() {
 
   return (
     <div className="min-h-screen bg-background relative">
+      {/* 좌측 사이드바: 섹션 목록 */}
+      <FormSectionSidebar
+        isOpen={isLeftSidebarOpen}
+        onToggle={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
+        documentTitle="채용공고"
+        sections={FORM_SECTIONS}
+        activeSection={activeSection}
+        onSectionClick={scrollToSection}
+      />
+
       {/* 상단 헤더 */}
-      <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50 h-[73px]">
-        <div className={cn(
-          "h-full px-8 transition-all duration-300",
-          isLeftSidebarOpen ? "ml-64" : ""
-        )}>
-          <div className="max-w-4xl mx-auto h-full flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" asChild>
-                <Link href="/">
-                  <ArrowLeft className="w-5 h-5" />
-                </Link>
-              </Button>
-              <div>
-                <h1 className="text-lg font-semibold text-foreground">채용공고 작성</h1>
-                <p className="text-sm text-muted-foreground">필요한 정보를 입력하면 AI가 항목을 작성합니다</p>
-              </div>
+      <header
+        className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-40 h-[73px] transition-all duration-300"
+        style={{ marginLeft: isLeftSidebarOpen ? "256px" : "0" }}
+      >
+        <div className="max-w-4xl mx-auto px-6 h-full flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-lg font-semibold text-foreground">채용공고 작성</h1>
+              <p className="text-sm text-muted-foreground">필요한 정보를 입력하면 AI가 항목을 작성합니다</p>
             </div>
-            <PDFDownloadButton
-              contentRef={documentRef}
-              fileName={pdfFileName}
-            />
           </div>
+          <PDFDownloadButton
+            contentRef={documentRef}
+            fileName={pdfFileName}
+          />
         </div>
       </header>
 
-      <div className="flex">
-        {/* 좌측 사이드바 토글 버튼 */}
-        <button
-          type="button"
-          onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
-          className={cn(
-            "fixed top-1/2 -translate-y-1/2 z-[60]",
-            "bg-primary text-primary-foreground border-none",
-            "py-4 px-3 rounded-r-lg cursor-pointer",
-            "text-[13px] font-medium",
-            "shadow-[2px_0_8px_rgba(0,0,0,0.1)]",
-            "transition-[left] duration-300 ease-in-out",
-            "flex items-center gap-2",
-            "hover:bg-primary/90",
-            isLeftSidebarOpen ? "left-64" : "left-0"
-          )}
-          style={{ writingMode: "vertical-rl" }}
-          aria-expanded={isLeftSidebarOpen}
-          aria-label={isLeftSidebarOpen ? "섹션 목록 닫기" : "섹션 목록 열기"}
-        >
-          <ListChecks className="w-4 h-4" />
-          <span>섹션 목록</span>
-        </button>
-
-        {/* 좌측 사이드바 - 섹션 네비게이션 */}
-        <aside
-          className={cn(
-            "fixed top-[73px] left-0 w-64 h-[calc(100vh-73px)]",
-            "bg-background border-r border-border",
-            "transition-transform duration-300 ease-in-out",
-            "z-50 overflow-y-auto",
-            isLeftSidebarOpen ? "translate-x-0" : "-translate-x-full"
-          )}
-        >
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="text-sm font-semibold text-foreground">채용공고 작성</h2>
-              <button
-                type="button"
-                onClick={() => setIsLeftSidebarOpen(false)}
-                className="text-muted-foreground hover:text-foreground p-1"
-                aria-label="사이드바 닫기"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground mb-6">
-              {sections.length}개 섹션 중 {completedSections.length}개 완료
-            </p>
-
-            <nav className="space-y-1">
-              {sections.map((section) => {
-                const isActive = activeSection === section.id;
-                const isCompleted = completedSections.includes(section.id);
-
-                return (
-                  <button
-                    key={section.id}
-                    onClick={() => scrollToSection(section.id)}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left",
-                      isActive
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium shrink-0",
-                        isCompleted
-                          ? "bg-primary text-primary-foreground"
-                          : isActive
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground"
-                      )}
-                    >
-                      {isCompleted ? <Check className="w-3.5 h-3.5" /> : section.number}
-                    </span>
-                    {section.label}
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-        </aside>
-
-        {/* 메인 폼 영역 */}
-        <main className={cn(
-          "flex-1 px-8 py-8 transition-all duration-300",
-          isLeftSidebarOpen ? "ml-64" : "",
-          isSidebarOpen ? "mr-[360px]" : ""
-        )}>
+      {/* 메인 폼 영역 */}
+      <main
+        className="px-6 py-8 transition-all duration-300"
+        style={{
+          marginLeft: isLeftSidebarOpen ? "256px" : "0",
+          marginRight: isSidebarOpen ? "360px" : "0",
+        }}
+      >
           <div className="max-w-4xl mx-auto space-y-8">
-            {/* 섹션 1: 기본 정보 */}
-            <Card ref={(el) => { sectionRefs.current.basic = el; }}>
+            {/* 채용 공고 정보 입력 */}
+            <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">1</span>
-                  기본 정보
-                </CardTitle>
-                <CardDescription>학교명과 공고번호를 입력하세요.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">학교명 <span className="text-destructive">*</span></label>
-                    <Input
-                      placeholder="예: 오창고등학교"
-                      value={schoolName}
-                      onChange={(e) => setSchoolName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">공고번호 <span className="text-destructive">*</span></label>
-                    <Input
-                      placeholder="예: 제2025-16호"
-                      value={noticeNumber}
-                      onChange={(e) => setNoticeNumber(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">공고일 <span className="text-destructive">*</span></label>
-                    <Input
-                      type="date"
-                      value={noticeDate}
-                      onChange={(e) => setNoticeDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">지역/교육청</label>
-                    <Select value={educationOffice} onValueChange={setEducationOffice}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="교육청 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {educationOffices.map((office) => (
-                          <SelectItem key={office} value={office}>
-                            {office}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 섹션 2: 채용 개요 */}
-            <Card ref={(el) => { sectionRefs.current.overview = el; }}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">2</span>
-                  채용 개요
-                </CardTitle>
-                <CardDescription>채용할 직종과 인원을 입력하세요.</CardDescription>
+                <CardTitle>채용 공고 정보 입력</CardTitle>
+                <CardDescription>입력한 내용으로 AI가 항목을 생성합니다.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* 채용 개요 */}
+                <section ref={setSectionRef("overview")} className="space-y-6">
+                  <h2 className="text-sm font-semibold text-foreground">채용 개요</h2>
                 {positions.map((position, index) => (
                   <div key={position.id} className="space-y-4 p-4 border rounded-lg relative">
                     {positions.length > 1 && (
@@ -776,7 +656,7 @@ export default function RecruitmentNoticeForm() {
                           variant="outline"
                           size="sm"
                           onClick={() => generateFieldMutation.mutate({ fieldName: "duties", fieldLabel: "담당업무" })}
-                          disabled={generatingField === "duties" || isGeneratingAll || !position.jobType}
+                          disabled={generatingField === "duties" || isGeneratingAll}
                         >
                           {generatingField === "duties" ? (
                             <>
@@ -786,7 +666,7 @@ export default function RecruitmentNoticeForm() {
                           ) : (
                             <>
                               <Wand2 className="w-3 h-3 mr-1" />
-                              AI 작성
+                              AI 생성
                             </>
                           )}
                         </Button>
@@ -805,19 +685,13 @@ export default function RecruitmentNoticeForm() {
                   <Plus className="w-4 h-4 mr-2" />
                   채용 직종 추가
                 </Button>
-              </CardContent>
-            </Card>
+              </section>
 
-            {/* 섹션 3: 근로 조건 */}
-            <Card ref={(el) => { sectionRefs.current.conditions = el; }}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">3</span>
-                  근로 조건
-                </CardTitle>
-                <CardDescription>계약기간, 근무시간, 보수 등을 입력하세요.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+              <div className="h-px bg-border" />
+
+              {/* 근로 조건 */}
+              <section ref={setSectionRef("conditions")} className="space-y-6">
+                <h2 className="text-sm font-semibold text-foreground">근로 조건</h2>
                 <div className="space-y-4">
                   <div className="flex items-center gap-4">
                     <label className="text-sm font-medium">계약기간 <span className="text-destructive">*</span></label>
@@ -941,7 +815,7 @@ export default function RecruitmentNoticeForm() {
                       ) : (
                         <>
                           <Wand2 className="w-3 h-3 mr-1" />
-                          AI 작성
+                          AI 생성
                         </>
                       )}
                     </Button>
@@ -953,19 +827,13 @@ export default function RecruitmentNoticeForm() {
                     onChange={(e) => setSalaryNote(e.target.value)}
                   />
                 </div>
-              </CardContent>
-            </Card>
+              </section>
 
-            {/* 섹션 4: 응시 자격 */}
-            <Card ref={(el) => { sectionRefs.current.qualifications = el; }}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">4</span>
-                  응시 자격
-                </CardTitle>
-                <CardDescription>응시에 필요한 자격 요건을 입력하세요.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+              <div className="h-px bg-border" />
+
+              {/* 응시 자격 */}
+              <section ref={setSectionRef("qualifications")} className="space-y-6">
+                <h2 className="text-sm font-semibold text-foreground">응시 자격</h2>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">연령 조건</label>
@@ -1046,7 +914,7 @@ export default function RecruitmentNoticeForm() {
                       ) : (
                         <>
                           <Wand2 className="w-3 h-3 mr-1" />
-                          AI 작성
+                          AI 생성
                         </>
                       )}
                     </Button>
@@ -1077,7 +945,7 @@ export default function RecruitmentNoticeForm() {
                       ) : (
                         <>
                           <Wand2 className="w-3 h-3 mr-1" />
-                          AI 작성
+                          AI 생성
                         </>
                       )}
                     </Button>
@@ -1092,22 +960,16 @@ export default function RecruitmentNoticeForm() {
 
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-700">
-                    ℹ️ 채용결격사유는 교육청 규정에 따라 자동으로 포함됩니다.
+                    채용결격사유는 교육청 규정에 따라 자동으로 포함됩니다.
                   </p>
                 </div>
-              </CardContent>
-            </Card>
+              </section>
 
-            {/* 섹션 5: 채용 일정 */}
-            <Card ref={(el) => { sectionRefs.current.schedule = el; }}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">5</span>
-                  채용 일정
-                </CardTitle>
-                <CardDescription>채용 단계별 일정을 입력하세요.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+              <div className="h-px bg-border" />
+
+              {/* 채용 일정 */}
+              <section ref={setSectionRef("schedule")} className="space-y-6">
+                <h2 className="text-sm font-semibold text-foreground">채용 일정</h2>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm border rounded-lg">
                     <thead className="bg-muted">
@@ -1160,21 +1022,15 @@ export default function RecruitmentNoticeForm() {
                     />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </section>
 
-            {/* 섹션 6: 제출 서류 */}
-            <Card ref={(el) => { sectionRefs.current.documents = el; }}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">6</span>
-                  제출 서류
-                </CardTitle>
-                <CardDescription>필요한 서류를 선택하세요. 클릭하면 선택/해제됩니다.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+              <div className="h-px bg-border" />
+
+              {/* 제출 서류 */}
+              <section ref={setSectionRef("documents")} className="space-y-6">
+                <h2 className="text-sm font-semibold text-foreground">제출 서류</h2>
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold">1차 접수 시 제출서류</h3>
+                  <h3 className="text-sm font-medium">1차 접수 시 제출서류</h3>
                   <div className="flex flex-wrap gap-2">
                     {firstSubmissionDocs.map((doc) => (
                       <button
@@ -1218,11 +1074,10 @@ export default function RecruitmentNoticeForm() {
                     ))}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </section>
 
-            {/* 하단 액션 버튼 */}
-            <div className="flex flex-col gap-3 pt-4 sm:flex-row">
+              {/* 하단 액션 버튼 */}
+              <div className="flex flex-col gap-3 pt-4 sm:flex-row">
               <Button type="button" variant="outline" onClick={() => setIsPreviewOpen(true)}>
                 <Eye className="w-4 h-4 mr-2" />
                 미리보기
@@ -1248,10 +1103,11 @@ export default function RecruitmentNoticeForm() {
               <Button type="button" variant="secondary" onClick={handleReset}>
                 초기화
               </Button>
-            </div>
+              </div>
+            </CardContent>
+          </Card>
           </div>
         </main>
-      </div>
 
       {/* 미리보기 모달 */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>

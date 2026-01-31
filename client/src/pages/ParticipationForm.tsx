@@ -151,7 +151,7 @@ export default function ParticipationForm() {
 
   // 폼 상태
   const [programName, setProgramName] = useState("");
-  const [programType, setProgramType] = useState("contest");
+  const [programType, setProgramType] = useState("");
   const [organizer, setOrganizer] = useState("");
   const [participationCategory, setParticipationCategory] = useState("");
   const [applicantName, setApplicantName] = useState("");
@@ -171,7 +171,7 @@ export default function ParticipationForm() {
   const [notices, setNotices] = useState("");
   const [personalInfoConsent, setPersonalInfoConsent] = useState(false);
   const [copyrightConsent, setCopyrightConsent] = useState(false);
-  const [signatureDate, setSignatureDate] = useState(new Date().toISOString().split("T")[0]);
+  const [signatureDate, setSignatureDate] = useState("");
   const [recipient, setRecipient] = useState("");
 
   const { data: profile } = useQuery<ProfileData>({
@@ -184,7 +184,7 @@ export default function ParticipationForm() {
   const getFormContext = () => ({
     programName,
     programType,
-    programTypeLabel: PROGRAM_TYPES.find(t => t.value === programType)?.label || programType,
+    programTypeLabel: programType,
     organizer,
     participationCategory,
     applicantName,
@@ -280,6 +280,7 @@ export default function ParticipationForm() {
     onSuccess: (data: Record<string, string>) => {
       // 모든 필드 적용
       if (data.programName) setProgramName(data.programName);
+      if (data.programType) setProgramType(data.programType);
       if (data.organizer) setOrganizer(data.organizer);
       if (data.participationCategory) setParticipationCategory(data.participationCategory);
       if (data.applicantName) setApplicantName(data.applicantName);
@@ -314,7 +315,7 @@ export default function ParticipationForm() {
 
   const handleReset = () => {
     setProgramName("");
-    setProgramType("contest");
+    setProgramType("");
     setOrganizer("");
     setParticipationCategory("");
     setApplicantName("");
@@ -334,7 +335,7 @@ export default function ParticipationForm() {
     setNotices("");
     setPersonalInfoConsent(false);
     setCopyrightConsent(false);
-    setSignatureDate(new Date().toISOString().split("T")[0]);
+    setSignatureDate("");
     setRecipient("");
     toast({ title: "초기화 완료", description: "모든 입력 내용이 초기화되었습니다." });
   };
@@ -423,10 +424,7 @@ export default function ParticipationForm() {
         <div className="max-w-4xl mx-auto">
           <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              참가 신청서 정보 입력
-            </CardTitle>
+            <CardTitle>참가 신청서 정보 입력</CardTitle>
             <CardDescription>입력한 내용으로 AI가 항목을 생성합니다.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -446,16 +444,11 @@ export default function ParticipationForm() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <span className="text-sm text-muted-foreground">프로그램 유형</span>
-                    <Select value={programType} onValueChange={setProgramType}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PROGRAM_TYPES.map((type) => (
-                          <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      value={programType}
+                      onChange={(e) => setProgramType(e.target.value)}
+                      placeholder="예: 공모전, 캠프, 체험학습"
+                    />
                   </div>
                   <div className="space-y-2">
                     <span className="text-sm text-muted-foreground">주최/주관</span>
@@ -737,7 +730,7 @@ export default function ParticipationForm() {
                   </div>
                 </div>
 
-                {programType === "contest" && (
+                {(programType.includes("공모") || programType.includes("대회")) && (
                   <div className="rounded-lg bg-muted/40 p-4 space-y-3">
                     <span className="font-medium text-sm">저작권 활용 동의 (공모전)</span>
                     <p className="text-xs text-muted-foreground">
