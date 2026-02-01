@@ -1,11 +1,14 @@
-import { useMemo, useRef, useState, useCallback } from "react";
+import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Eye, Sparkles, Loader2, Wand2 } from "lucide-react";
+import { ArrowLeft, Eye, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import PDFDownloadButton from "@/components/PDFDownloadButton";
 import AbsenceReportPreview, { AbsenceType } from "@/components/AbsenceReportPreview";
 import DateRangePicker, { DateRangeValue } from "@/components/common/DateRangePicker";
 import { Button } from "@/components/ui/button";
+import { AIStyledButton, SparkleIcon } from "@/components/AIGenerateButton";
+import { DocumentSaveButton, AutoSaveIndicator } from "@/components/DocumentSaveButton";
+import { useDocumentSave } from "@/hooks/use-document-save";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -124,6 +127,41 @@ export default function AbsenceReportForm() {
     const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     return `${absencePeriod.start} ~ ${absencePeriod.end} (${days}일간)`;
   }, [absencePeriod]);
+
+  // 문서 저장 기능
+  const getFormData = useCallback(() => ({
+    grade, classNum, number, studentName, absenceType, absencePeriod,
+    reason, evidenceList, parentName, parentPhone, submissionDate, schoolName,
+  }), [grade, classNum, number, studentName, absenceType, absencePeriod, reason, evidenceList, parentName, parentPhone, submissionDate, schoolName]);
+
+  const getTitle = useCallback(() => `결석신고서_${studentName || "학생"}_${absencePeriod.start || ""}`, [studentName, absencePeriod.start]);
+  const getContent = useCallback(() => JSON.stringify(getFormData()), [getFormData]);
+
+  const handleLoadDocument = useCallback((data: Record<string, unknown>) => {
+    if (data.grade) setGrade(data.grade as string);
+    if (data.classNum) setClassNum(data.classNum as string);
+    if (data.number) setNumber(data.number as string);
+    if (data.studentName) setStudentName(data.studentName as string);
+    if (data.absenceType) setAbsenceType(data.absenceType as AbsenceType);
+    if (data.absencePeriod) setAbsencePeriod(data.absencePeriod as DateRangeValue);
+    if (data.reason) setReason(data.reason as string);
+    if (data.evidenceList) setEvidenceList(data.evidenceList as string[]);
+    if (data.parentName) setParentName(data.parentName as string);
+    if (data.parentPhone) setParentPhone(data.parentPhone as string);
+    if (data.submissionDate) setSubmissionDate(data.submissionDate as string);
+  }, []);
+
+  const { isSaving, lastSavedAt, saveError, saveDocument, triggerAutoSave } = useDocumentSave({
+    documentType: "결석신고서",
+    getFormData,
+    getTitle,
+    getContent,
+    onLoadDocument: handleLoadDocument,
+  });
+
+  useEffect(() => {
+    triggerAutoSave();
+  }, [grade, classNum, number, studentName, absenceType, absencePeriod, reason, evidenceList, parentName, parentPhone, submissionDate, triggerAutoSave]);
 
   const handleEvidenceToggle = (id: string) => {
     setEvidenceList((prev) =>
@@ -311,10 +349,11 @@ export default function AbsenceReportForm() {
               <p className="text-sm text-muted-foreground">학생 정보와 결석 사유를 입력해주세요</p>
             </div>
           </div>
-          <PDFDownloadButton
-            contentRef={documentRef}
-            fileName={pdfFileName}
-          />
+          <div className="flex items-center gap-3">
+            <AutoSaveIndicator lastSavedAt={lastSavedAt} isSaving={isSaving} error={saveError} />
+            <DocumentSaveButton onClick={() => saveDocument("completed")} isSaving={isSaving} variant="header" />
+            <PDFDownloadButton contentRef={documentRef} fileName={pdfFileName} />
+          </div>
         </div>
       </header>
 
@@ -432,25 +471,11 @@ export default function AbsenceReportForm() {
             <section ref={setSectionRef("section-reason")} className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-foreground">결석 사유</h2>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
+                <AIStyledButton
                   onClick={() => generateFieldMutation.mutate({ fieldName: "reason", fieldLabel: "결석 사유" })}
                   disabled={generatingField === "reason" || isGeneratingAll}
-                >
-                  {generatingField === "reason" ? (
-                    <>
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      생성 중...
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="w-3 h-3 mr-1" />
-                      AI 생성
-                    </>
-                  )}
-                </Button>
+                  isLoading={generatingField === "reason"}
+                />
               </div>
               <Textarea
                 placeholder="결석 사유를 상세히 작성해주세요. (예: 고열 및 감기 증상으로 인한 병원 치료)"
@@ -538,24 +563,25 @@ export default function AbsenceReportForm() {
                 <Eye className="w-4 h-4 mr-2" />
                 미리보기
               </Button>
-              <Button
+              <DocumentSaveButton onClick={() => saveDocument("completed")} isSaving={isSaving} variant="footer" />
+              <button
                 type="button"
-                className="flex-1"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-blue-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg hover:from-violet-600 hover:to-blue-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={() => generateAllMutation.mutate()}
                 disabled={generateAllMutation.isPending || isGeneratingAll}
               >
                 {generateAllMutation.isPending || isGeneratingAll ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    AI 전체 생성 중...
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    AI 전부 생성 중...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    AI 전체 생성
+                    <SparkleIcon />
+                    AI 전부 생성
                   </>
                 )}
-              </Button>
+              </button>
               <Button type="button" variant="secondary" onClick={handleReset}>
                 초기화
               </Button>

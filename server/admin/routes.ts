@@ -658,4 +658,45 @@ router.get("/users/:id/logs", ...requireAdmin, async (req: Request, res: Respons
   }
 });
 
+// Token usage statistics (placeholder - connect to actual logging later)
+router.get("/token-usage", ...requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    // TODO: Connect to actual usage tracking once implemented
+    // For now, return placeholder data structure
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Placeholder data - in production, query from a usage_logs table
+    res.json({
+      success: true,
+      data: {
+        today: {
+          requests: 0,
+          estimatedCost: 0,
+        },
+        thisWeek: {
+          requests: 0,
+          estimatedCost: 0,
+        },
+        thisMonth: {
+          requests: 0,
+          estimatedCost: 0,
+        },
+        byEndpoint: {},
+        // Rate limit info
+        rateLimits: {
+          aiGenerate: { perMinute: 5, perHour: 50, perDay: 200 },
+          chat: { perMinute: 10, perHour: 100, perDay: 200 },
+        },
+        note: "실제 사용량은 OpenAI 대시보드에서 확인하세요: https://platform.openai.com/usage",
+      },
+    });
+  } catch (error) {
+    console.error("Token usage error:", error);
+    res.status(500).json({ error: "서버 오류가 발생했습니다" });
+  }
+});
+
 export { router as adminRouter };

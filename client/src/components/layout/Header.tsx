@@ -1,6 +1,7 @@
 import { Menu } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/Logo";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -25,12 +26,7 @@ export function Header({ onMenuClick, showMenuButton = true }: HeaderProps) {
           <div className="w-9" aria-hidden />
         )}
 
-        <a
-          href="/"
-          className="flex items-center gap-2 font-semibold text-lg hover:opacity-80 transition-opacity"
-        >
-          티처메이트
-        </a>
+        <Logo />
 
         <Button
           onClick={() => navigate("/login")}

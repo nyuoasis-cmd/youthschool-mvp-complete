@@ -12,6 +12,7 @@ import OpenAI from "openai";
 import { setupAuth, isAuthenticated, isSystemAdmin, hasRole, requireFullAuth } from "./auth";
 import { adminRouter } from "./admin/routes";
 import { chatRouter } from "./chat/routes";
+import { aiGenerateRateLimit, aiGenerateHourlyLimit, dailyAiLimit, generalRateLimit } from "./middleware/rateLimit";
 import { USER_TYPES } from "@shared/models/auth";
 import multer from "multer";
 import { parseHwpFile, chunkText } from "./hwpParser";
@@ -416,7 +417,7 @@ export async function registerRoutes(
   });
 
   // Generate document with AI
-  app.post("/api/documents/generate", async (req, res) => {
+  app.post("/api/documents/generate", aiGenerateRateLimit, aiGenerateHourlyLimit, dailyAiLimit, async (req, res) => {
     const startTime = Date.now();
     
     try {
@@ -641,7 +642,7 @@ ${crawlerSections.join("\n\n")}
   });
 
   // Generate content for a specific field using AI
-  app.post("/api/documents/generate-field", async (req, res) => {
+  app.post("/api/documents/generate-field", aiGenerateRateLimit, aiGenerateHourlyLimit, dailyAiLimit, async (req, res) => {
     try {
       const { documentType, fieldName, fieldLabel, context } = req.body;
       
@@ -1263,6 +1264,107 @@ ${contextDescription}
 
 JSON만 출력:`;
         }
+      } else if (documentType === "개인정보 동의서") {
+        // 랜덤화 요소
+        const styles = ["격식체", "친근한 격식체", "간결체"];
+        const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+
+        if (fieldName === "description") {
+          prompt = `[핵심 지시] 개인정보 동의서의 안내문을 작성하세요.
+
+[입력 정보]
+${contextDescription}
+
+[이번 생성 설정]
+- 스타일: ${randomStyle}
+
+[작성 지침]
+- 개인정보 보호법에 따라 동의서를 작성함을 안내
+- 동의 여부를 결정해달라는 요청 포함
+- 2-3문장으로 간결하게 작성
+
+안내문만 출력:`;
+        } else if (fieldName === "collectionPurpose") {
+          const subtitle = (context as Record<string, string>)?.subtitle || "";
+
+          prompt = `[핵심 지시] 참고 문서의 실제 개인정보 수집 목적을 분석하고 스타일을 차용하세요.
+
+[입력 정보]
+${contextDescription}
+부제목/용도: ${subtitle}
+
+[이번 생성 설정]
+- 스타일: ${randomStyle}
+
+[다양성 규칙]
+- 참고 문서에서 표현/어휘를 골라 재조합
+- 매번 다른 문장 구조 사용
+- 고정된 템플릿 사용 금지
+
+[작성 지침]
+- 부제목/용도가 있으면 그에 맞는 수집 목적 작성
+- 구체적이고 명확한 목적 제시
+- 1-2문장으로 간결하게 작성
+
+수집 목적만 출력:`;
+        } else if (fieldName === "refusalConsequence") {
+          const subtitle = (context as Record<string, string>)?.subtitle || "";
+          const collectionPurpose = (context as Record<string, string>)?.collectionPurpose || "";
+
+          prompt = `[핵심 지시] 개인정보 수집 동의 거부 시 불이익을 작성하세요.
+
+[입력 정보]
+${contextDescription}
+부제목/용도: ${subtitle}
+수집 목적: ${collectionPurpose}
+
+[이번 생성 설정]
+- 스타일: ${randomStyle}
+
+[작성 지침]
+- 동의 거부 시 발생하는 실질적인 불이익 설명
+- 위협적이지 않고 사실적인 표현 사용
+- 1문장으로 간결하게 작성
+- 예: "동의하지 않을 경우 해당 서비스 이용에 제한을 받을 수 있습니다."
+
+거부 시 불이익만 출력:`;
+        } else if (fieldName === "allFields") {
+          const subtitle = (context as Record<string, string>)?.subtitle || "";
+
+          prompt = `[역할] 학교 개인정보 동의서 작성 도우미
+
+[작업] 개인정보 동의서 예시 데이터를 JSON으로 생성하세요.
+
+[용도] ${subtitle || "학교 행사 참가, 학부모 위원 위촉, 프로그램 운영 중 랜덤 선택"}
+
+[필수 규칙 - 반드시 준수]
+1. 아래 8개 필드를 전부 포함 (하나라도 누락 시 실패)
+2. 모든 필드에 빈 문자열("") 금지
+
+[출력 전 체크리스트]
+□ title 있음? □ subtitle 있음? □ description 있음? □ collectionPurpose 있음?
+□ retentionPeriod 있음? □ refusalConsequence 있음? □ studentName 있음? □ guardianName 있음? □ recipient 있음?
+
+[생성 규칙]
+- 실제 학교에서 사용할 법한 자연스러운 예시 데이터 생성
+- 용도에 맞는 동의서 제목과 수집 목적 생성
+- 개인정보 보호법에 맞는 표현 사용
+
+[출력 형식] 아래 JSON 형식으로만 출력 (다른 텍스트 없이, 모든 필드 필수):
+{
+  "title": "동의서 제목 (예: 개인정보 수집·이용 동의서)",
+  "subtitle": "부제목/용도 (예: 학교폭력 전담기구 학부모위원 위촉용)",
+  "description": "안내문 (2-3문장)",
+  "collectionPurpose": "수집 목적 (1-2문장)",
+  "retentionPeriod": "보유 기간 (예: 재학 기간, 1년, 목적 달성 시까지)",
+  "refusalConsequence": "거부 시 불이익 (1문장)",
+  "studentName": "학생 이름 (예: 홍길동)",
+  "guardianName": "보호자 이름 (예: 홍부모)",
+  "recipient": "수신자 (예: ○○학교장 귀하)"
+}
+
+JSON만 출력:`;
+        }
       } else if (documentType === "채용공고") {
         const positions = (context as Record<string, unknown>)?.positions as Array<{ jobType?: string; contractType?: string }> | undefined;
         const jobType = positions?.[0]?.jobType || "";
@@ -1560,7 +1662,7 @@ JSON만 출력:`;
   });
 
   // ================== Safety Education Plan AI Generation API ==================
-  app.post("/api/safety-education-plan/generate-ai-content", async (req, res) => {
+  app.post("/api/safety-education-plan/generate-ai-content", aiGenerateRateLimit, aiGenerateHourlyLimit, dailyAiLimit, async (req, res) => {
     try {
       const { fieldName, context } = req.body;
 
@@ -1862,7 +1964,7 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
   });
 
   // ================== Event Plan AI Generation API ==================
-  app.post("/api/event-plan/generate-ai-content", async (req, res) => {
+  app.post("/api/event-plan/generate-ai-content", aiGenerateRateLimit, aiGenerateHourlyLimit, dailyAiLimit, async (req, res) => {
     try {
       const { fieldName, context } = req.body;
 
@@ -2127,7 +2229,7 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
   });
 
   // ================== Parent Meeting AI Generation API ==================
-  app.post("/api/parent-meeting/generate-ai-content", async (req, res) => {
+  app.post("/api/parent-meeting/generate-ai-content", aiGenerateRateLimit, aiGenerateHourlyLimit, dailyAiLimit, async (req, res) => {
     try {
       const { fieldName, context } = req.body;
 
@@ -2375,7 +2477,7 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
   });
 
   // ================== Budget Disclosure AI Generation API ==================
-  app.post("/api/budget-disclosure/generate-ai-content", async (req, res) => {
+  app.post("/api/budget-disclosure/generate-ai-content", aiGenerateRateLimit, aiGenerateHourlyLimit, dailyAiLimit, async (req, res) => {
     try {
       const { fieldName, context } = req.body;
 
@@ -2650,7 +2752,7 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
   });
 
   // ================== Bullying Prevention Plan AI Generation API ==================
-  app.post("/api/bullying-prevention-plan/generate-ai-content", async (req, res) => {
+  app.post("/api/bullying-prevention-plan/generate-ai-content", aiGenerateRateLimit, aiGenerateHourlyLimit, dailyAiLimit, async (req, res) => {
     try {
       const { fieldName, context } = req.body;
 
@@ -3244,7 +3346,7 @@ ${currentValue ? `[기존 입력]\n${currentValue}\n\n기존 내용을 보완해
   // ================== Afterschool Plan AI Generation API ==================
 
   // Generate AI content for afterschool plan form fields
-  app.post("/api/afterschool/generate-ai-content", async (req, res) => {
+  app.post("/api/afterschool/generate-ai-content", aiGenerateRateLimit, aiGenerateHourlyLimit, dailyAiLimit, async (req, res) => {
     try {
       const { fieldName, context, documentType } = req.body;
 
@@ -3583,7 +3685,7 @@ ${context?.policies?.join(", ") || "공개 모집 원칙, 안전 관리 강화"}
   });
 
   // Generate AI content for field trip plan fields
-  app.post("/api/generate/field-trip-plan/field", async (req, res) => {
+  app.post("/api/generate/field-trip-plan/field", aiGenerateRateLimit, aiGenerateHourlyLimit, dailyAiLimit, async (req, res) => {
     try {
       const { fieldName, context } = req.body as { fieldName?: string; context?: Record<string, unknown> };
 
@@ -3874,7 +3976,7 @@ ${contextText}
   });
 
   // Generate field
-  app.post("/v1/drafts/:draftId/fields/:fieldKey:generate", async (req, res) => {
+  app.post("/v1/drafts/:draftId/fields/:fieldKey:generate", aiGenerateRateLimit, aiGenerateHourlyLimit, dailyAiLimit, async (req, res) => {
     try {
       const { draftId, fieldKey } = req.params;
       const draft = await storage.getAftercareDraft(draftId);
@@ -4456,7 +4558,7 @@ ${contextText}
   });
 
   // Use AI to analyze template and extract fields
-  app.post("/api/uploaded-templates/:id/analyze", async (req, res) => {
+  app.post("/api/uploaded-templates/:id/analyze", aiGenerateRateLimit, aiGenerateHourlyLimit, dailyAiLimit, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {

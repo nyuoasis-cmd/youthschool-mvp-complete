@@ -1,10 +1,13 @@
-import { useMemo, useRef, useState, useCallback } from "react";
+import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Sparkles, Loader2, Wand2, Eye, Plus, X } from "lucide-react";
 import { Link } from "wouter";
 import PDFDownloadButton from "@/components/PDFDownloadButton";
 import SuneungNoticePreview from "@/components/SuneungNoticePreview";
 import { Button } from "@/components/ui/button";
+import { AIStyledButton, SparkleIcon } from "@/components/AIGenerateButton";
+import { DocumentSaveButton, AutoSaveIndicator } from "@/components/DocumentSaveButton";
+import { useDocumentSave } from "@/hooks/use-document-save";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -124,6 +127,63 @@ export default function SuneungNoticeForm() {
   const schoolName = profile?.schoolName || "학교명";
   const signatureText = principalSignature || (schoolName ? `${schoolName}장` : "");
   const pdfFileName = `${academicYear}_${examType}_안내문`;
+
+  // 문서 저장 기능
+  const getFormData = useCallback(() => ({
+    academicYear,
+    examType,
+    examDate,
+    greeting,
+    schedules,
+    supplies,
+    cautions,
+    entryTimeFirst,
+    entryTimeOthers,
+    additionalNotes,
+    issueDate,
+    principalSignature,
+    schoolName,
+  }), [academicYear, examType, examDate, greeting, schedules, supplies, cautions, entryTimeFirst, entryTimeOthers, additionalNotes, issueDate, principalSignature, schoolName]);
+
+  const getTitle = useCallback(() => `${academicYear} ${examType} 안내문`, [academicYear, examType]);
+
+  const getContent = useCallback(() => {
+    return JSON.stringify(getFormData());
+  }, [getFormData]);
+
+  const handleLoadDocument = useCallback((data: Record<string, unknown>) => {
+    if (data.academicYear) setAcademicYear(data.academicYear as string);
+    if (data.examType) setExamType(data.examType as string);
+    if (data.examDate) setExamDate(data.examDate as string);
+    if (data.greeting) setGreeting(data.greeting as string);
+    if (data.schedules) setSchedules(data.schedules as ScheduleRow[]);
+    if (data.supplies) setSupplies(data.supplies as SupplyItem[]);
+    if (data.cautions) setCautions(data.cautions as string);
+    if (data.entryTimeFirst) setEntryTimeFirst(data.entryTimeFirst as string);
+    if (data.entryTimeOthers) setEntryTimeOthers(data.entryTimeOthers as string);
+    if (data.additionalNotes) setAdditionalNotes(data.additionalNotes as NoticeItem[]);
+    if (data.issueDate) setIssueDate(data.issueDate as string);
+    if (data.principalSignature) setPrincipalSignature(data.principalSignature as string);
+  }, []);
+
+  const {
+    isSaving,
+    lastSavedAt,
+    saveError,
+    saveDocument,
+    triggerAutoSave,
+  } = useDocumentSave({
+    documentType: "수능안내문",
+    getFormData,
+    getTitle,
+    getContent,
+    onLoadDocument: handleLoadDocument,
+  });
+
+  // 폼 변경 시 자동 저장 트리거
+  useEffect(() => {
+    triggerAutoSave();
+  }, [academicYear, examType, examDate, greeting, schedules, supplies, cautions, entryTimeFirst, entryTimeOthers, additionalNotes, issueDate, principalSignature, triggerAutoSave]);
 
   // 섹션으로 스크롤
   const scrollToSection = useCallback((sectionId: string) => {
@@ -485,10 +545,22 @@ export default function SuneungNoticeForm() {
               <p className="text-sm text-muted-foreground">입력한 내용으로 AI가 항목을 생성합니다</p>
             </div>
           </div>
-          <PDFDownloadButton
-            contentRef={documentRef}
-            fileName={pdfFileName}
-          />
+          <div className="flex items-center gap-3">
+            <AutoSaveIndicator
+              lastSavedAt={lastSavedAt}
+              isSaving={isSaving}
+              error={saveError}
+            />
+            <DocumentSaveButton
+              onClick={() => saveDocument("completed")}
+              isSaving={isSaving}
+              variant="header"
+            />
+            <PDFDownloadButton
+              contentRef={documentRef}
+              fileName={pdfFileName}
+            />
+          </div>
         </div>
       </header>
 
@@ -546,25 +618,11 @@ export default function SuneungNoticeForm() {
               <section ref={setSectionRef("section-greeting")} className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-foreground">인사말</h2>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
+                  <AIStyledButton
                     onClick={() => generateFieldMutation.mutate({ fieldName: "greeting", fieldLabel: "인사말" })}
                     disabled={generatingField === "greeting" || isGeneratingAll}
-                  >
-                    {generatingField === "greeting" ? (
-                      <>
-                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                        생성 중...
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="w-3 h-3 mr-1" />
-                        AI 생성
-                      </>
-                    )}
-                  </Button>
+                    isLoading={generatingField === "greeting"}
+                  />
                 </div>
                 <Textarea
                   placeholder="예: 학부모님 안녕하십니까? 2026학년도 9월 모의평가가 다음과 같이 시행됩니다..."
@@ -580,25 +638,11 @@ export default function SuneungNoticeForm() {
               <section ref={setSectionRef("section-schedule")} className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-foreground">시험 시간표</h2>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
+                  <AIStyledButton
                     onClick={() => generateFieldMutation.mutate({ fieldName: "schedules", fieldLabel: "시험 시간표" })}
                     disabled={generatingField === "schedules" || isGeneratingAll}
-                  >
-                    {generatingField === "schedules" ? (
-                      <>
-                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                        생성 중...
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="w-3 h-3 mr-1" />
-                        AI 생성
-                      </>
-                    )}
-                  </Button>
+                    isLoading={generatingField === "schedules"}
+                  />
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-sm">
@@ -683,25 +727,11 @@ export default function SuneungNoticeForm() {
               <section ref={setSectionRef("section-supplies")} className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-foreground">준비물 안내</h2>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
+                  <AIStyledButton
                     onClick={() => generateFieldMutation.mutate({ fieldName: "supplies", fieldLabel: "준비물" })}
                     disabled={generatingField === "supplies" || isGeneratingAll}
-                  >
-                    {generatingField === "supplies" ? (
-                      <>
-                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                        생성 중...
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="w-3 h-3 mr-1" />
-                        AI 생성
-                      </>
-                    )}
-                  </Button>
+                    isLoading={generatingField === "supplies"}
+                  />
                 </div>
                 {supplies.map((item) => (
                   <div key={item.id} className="flex items-center gap-2">
@@ -734,25 +764,11 @@ export default function SuneungNoticeForm() {
               <section ref={setSectionRef("section-cautions")} className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-foreground">유의사항</h2>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
+                  <AIStyledButton
                     onClick={() => generateFieldMutation.mutate({ fieldName: "cautions", fieldLabel: "유의사항" })}
                     disabled={generatingField === "cautions" || isGeneratingAll}
-                  >
-                    {generatingField === "cautions" ? (
-                      <>
-                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                        생성 중...
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="w-3 h-3 mr-1" />
-                        AI 생성
-                      </>
-                    )}
-                  </Button>
+                    isLoading={generatingField === "cautions"}
+                  />
                 </div>
                 <Textarea
                   placeholder="예: 휴대폰, 스마트워치, 이어폰 등 모든 전자기기는 시험장 반입이 금지됩니다..."
@@ -793,25 +809,11 @@ export default function SuneungNoticeForm() {
               <section ref={setSectionRef("section-notes")} className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-foreground">추가 안내 항목</h2>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
+                  <AIStyledButton
                     onClick={() => generateFieldMutation.mutate({ fieldName: "additionalNotes", fieldLabel: "추가 안내" })}
                     disabled={generatingField === "additionalNotes" || isGeneratingAll}
-                  >
-                    {generatingField === "additionalNotes" ? (
-                      <>
-                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                        생성 중...
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="w-3 h-3 mr-1" />
-                        AI 생성
-                      </>
-                    )}
-                  </Button>
+                    isLoading={generatingField === "additionalNotes"}
+                  />
                 </div>
                 {additionalNotes.map((item) => (
                   <div key={item.id} className="flex items-start gap-2">
@@ -870,24 +872,29 @@ export default function SuneungNoticeForm() {
                   <Eye className="w-4 h-4 mr-2" />
                   미리보기
                 </Button>
-                <Button
+                <DocumentSaveButton
+                  onClick={() => saveDocument("completed")}
+                  isSaving={isSaving}
+                  variant="footer"
+                />
+                <button
                   type="button"
-                  className="flex-1"
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-blue-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg hover:from-violet-600 hover:to-blue-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => generateAllMutation.mutate()}
                   disabled={generateAllMutation.isPending || isGeneratingAll}
                 >
                   {generateAllMutation.isPending || isGeneratingAll ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" />
                       AI 전부 생성 중...
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-4 h-4 mr-2" />
+                      <SparkleIcon />
                       AI 전부 생성
                     </>
                   )}
-                </Button>
+                </button>
                 <Button type="button" variant="secondary" onClick={handleReset}>
                   초기화
                 </Button>

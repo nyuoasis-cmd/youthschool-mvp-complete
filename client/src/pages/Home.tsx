@@ -8,7 +8,25 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { FileText, Sparkles, Clock, CheckCircle2, Settings, LogIn, LogOut, User, ClipboardList, MessageSquare, Wrench, Paperclip, Send, MoreHorizontal, BookOpen } from "lucide-react";
+import { FileText, Sparkles, Clock, CheckCircle2, Settings, LogIn, LogOut, User, ClipboardList, MessageSquare, Wrench, Paperclip, MoreHorizontal, BookOpen, ClipboardCheck, Loader2, Shield } from "lucide-react";
+
+// 화살표 아이콘 (전송 가능)
+const ArrowUpIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="19" x2="12" y2="5"/>
+    <polyline points="5 12 12 5 19 12"/>
+  </svg>
+);
+
+// 타이핑 인디케이터
+const TypingIndicator = () => (
+  <div className="flex items-center gap-1 px-4 py-3">
+    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+    <span className="text-sm text-gray-400 ml-2">티처메이트가 답변을 작성하고 있어요</span>
+  </div>
+);
 import { useAuth } from "@/hooks/use-auth";
 
 const documentTypes = [
@@ -72,6 +90,16 @@ const documentTypes = [
     category: "수업/평가",
     levels: ["중학교", "고등학교"],
   },
+  {
+    id: "consent-form",
+    title: "개인정보 동의서",
+    description: "개인정보 수집·이용 및 제3자 제공 동의서를 AI로 작성합니다.",
+    icon: ClipboardCheck,
+    href: "/create/consent-form",
+    examples: ["수집 목적 자동 생성", "제3자 제공 설정", "동의 체크박스"],
+    category: "행정업무",
+    levels: ["초등학교", "중학교", "고등학교"],
+  },
 ];
 
 const CATEGORY_OPTIONS = ["전체", "수업/평가", "생활기록", "상담업무", "행정업무", "기타"] as const;
@@ -102,6 +130,13 @@ type RecentDocument = {
   createdAt?: string;
 };
 
+type RecentChat = {
+  chatId: string;
+  title: string;
+  updatedAt?: string;
+  preview?: string;
+};
+
 export default function Home() {
   const { user, isLoading, isAuthenticated, logout, isLoggingOut } = useAuth();
   const [, setLocation] = useLocation();
@@ -121,6 +156,18 @@ export default function Home() {
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isAdminUser = user?.userType === "system_admin" || user?.userType === "operator";
+
+  const { data: recentChats = [], isLoading: isChatsLoading } = useQuery({
+    queryKey: ["/api/chats", "sidebar", user?.id],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const response = await fetch(`/api/chats?limit=6`, {
+        credentials: "include",
+      });
+      const payload = await response.json();
+      return (payload?.data ?? []) as RecentChat[];
+    },
+  });
 
   const { data: recentDocuments = [], isLoading: isRecentLoading } = useQuery({
     queryKey: ["/api/documents", "sidebar", user?.id],
@@ -230,6 +277,7 @@ export default function Home() {
         { role: "assistant", content: assistantMessage?.content || "응답을 생성하지 못했습니다.", id: assistantMessage?.messageId || `${Date.now()}-a` },
       ]);
       setChatInput("");
+      queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
     } catch (error) {
       toast({
         title: "메시지 전송 실패",
@@ -294,6 +342,57 @@ export default function Home() {
     queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
   };
 
+  const handleLoadChat = async (chat: RecentChat) => {
+    try {
+      const response = await fetch(`/api/chats/${chat.chatId}`, {
+        credentials: "include",
+      });
+      const payload = await response.json();
+      if (payload?.data?.messages) {
+        setHomeChatId(chat.chatId);
+        setHomeMessages(
+          payload.data.messages.map((m: any) => ({
+            role: m.role,
+            content: m.content,
+            id: m.messageId,
+          }))
+        );
+        setActiveSection("chat");
+      }
+    } catch (error) {
+      toast({
+        title: "대화 불러오기 실패",
+        description: "대화를 불러오는 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRenameChat = async (chat: RecentChat) => {
+    const nextTitle = window.prompt("새 이름을 입력하세요:", chat.title);
+    if (!nextTitle || nextTitle.trim() === chat.title) return;
+    await apiRequest("PUT", `/api/chats/${chat.chatId}`, { title: nextTitle.trim() });
+    queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
+  };
+
+  const handleDeleteChat = async (chat: RecentChat) => {
+    const confirmed = window.confirm("정말 삭제하시겠습니까?");
+    if (!confirmed) return;
+    await apiRequest("DELETE", `/api/chats/${chat.chatId}`);
+    queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
+    if (homeChatId === chat.chatId) {
+      setHomeChatId(null);
+      setHomeMessages([]);
+    }
+  };
+
+  const handleNewChat = () => {
+    setHomeChatId(null);
+    setHomeMessages([]);
+    setChatInput("");
+    setActiveSection("chat");
+  };
+
   const getDocumentIcon = (type: string) => {
     if (type.includes("가정")) return "📮";
     if (type.includes("급식")) return "🍽️";
@@ -304,14 +403,40 @@ export default function Home() {
     return "📄";
   };
 
+  const getEditUrl = (doc: RecentDocument): string => {
+    const typeToPath: Record<string, string> = {
+      "급식안내문": "/create/meal-notice",
+      "결석신고서": "/create/absence-report",
+      "수능안내문": "/create/suneung-notice",
+      "채용공고": "/create/recruitment-notice",
+      "참가신청서": "/create/participation-form",
+      "강의계획서": "/create/syllabus",
+      "현장체험학습": "/create/field-trip",
+      "개인정보동의서": "/create/consent-form",
+    };
+    const basePath = typeToPath[doc.documentType] || `/mypage/document/${doc.id}`;
+    return `${basePath}?id=${doc.id}`;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="font-semibold text-lg">티처메이트</span>
-          </Link>
+          <a href="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
+            {/* Logo Icon */}
+            <div className="w-8 h-8 relative">
+              <div
+                className="absolute w-3 h-7 left-1 top-0.5 bg-[#1B2A4A] rounded-sm"
+                style={{ transform: "rotate(-8deg)" }}
+              />
+              <div className="absolute w-2.5 h-5 right-0.5 top-1.5 bg-[#7EC8B5] rounded-sm" />
+            </div>
+            {/* Logo Text */}
+            <span className="text-lg font-extrabold text-[#1B2A4A] tracking-tight">
+              teachermate
+            </span>
+          </a>
           <div className="flex items-center gap-3">
             {isLoading ? (
               <div className="h-9 w-24 bg-muted animate-pulse rounded-md" />
@@ -320,19 +445,19 @@ export default function Home() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center gap-2" data-testid="button-user-menu">
                     <Avatar className="h-7 w-7">
-                      <AvatarImage src={user.profileImageUrl || undefined} alt={user.name || "사용자"} />
+                      <AvatarImage src={user.profileImageUrl || undefined} alt={user.nickname || user.name || "사용자"} />
                       <AvatarFallback>
                         <User className="h-4 w-4" />
                       </AvatarFallback>
                     </Avatar>
                     <span className="hidden sm:inline text-sm">
-                      {user.name || user.email || "사용자"}
+                      {user.nickname || user.name || user.email || "사용자"}
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium">{user.name}</p>
+                    <p className="text-sm font-medium">{user.nickname || user.name}</p>
                     <p className="text-xs text-muted-foreground">{user.email}</p>
                   </div>
                   <DropdownMenuSeparator />
@@ -342,6 +467,17 @@ export default function Home() {
                   <DropdownMenuItem asChild>
                     <Link href="/mypage">마이페이지</Link>
                   </DropdownMenuItem>
+                  {(user.userType === "system_admin" || user.userType === "operator") && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin" className="flex items-center gap-2">
+                          <Shield className="h-4 w-4" />
+                          관리자 대시보드
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onSelect={(event) => {
@@ -385,9 +521,9 @@ export default function Home() {
           <div className="px-3 py-6 space-y-2">
             <button
               className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                activeSection === "chat" ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                activeSection === "chat" && !homeChatId ? "bg-primary/10 text-primary" : "hover:bg-muted"
               }`}
-              onClick={() => setActiveSection("chat")}
+              onClick={handleNewChat}
               aria-label="새 대화"
             >
               <MessageSquare className="h-4 w-4" />
@@ -405,7 +541,66 @@ export default function Home() {
             </button>
           </div>
           {sidebarOpen && (
-            <div className="mt-2 px-3 pb-6">
+            <div className="mt-2 px-3 pb-6 space-y-4">
+              {/* 대화 이력 */}
+              <div className="border-t pt-4">
+                <div className="px-2 text-xs font-medium text-muted-foreground">대화 이력</div>
+                <div className="mt-2 space-y-1">
+                  {!user && (
+                    <p className="px-2 text-xs text-muted-foreground">
+                      로그인 후 대화 이력을 확인할 수 있어요.
+                    </p>
+                  )}
+                  {user && isChatsLoading && (
+                    <p className="px-2 text-xs text-muted-foreground">대화 이력을 불러오는 중...</p>
+                  )}
+                  {user && !isChatsLoading && recentChats.length === 0 && (
+                    <p className="px-2 text-xs text-muted-foreground">대화 이력이 없습니다.</p>
+                  )}
+                  {recentChats.map((chat) => (
+                    <div
+                      key={chat.chatId}
+                      className={`group flex items-center justify-between rounded-lg px-2 py-2 transition-colors hover:bg-muted ${
+                        homeChatId === chat.chatId ? "bg-primary/10" : ""
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        className="flex flex-1 items-center gap-2 text-left text-sm overflow-hidden"
+                        onClick={() => handleLoadChat(chat)}
+                      >
+                        <span className="text-base shrink-0">💬</span>
+                        <span className="truncate max-w-full">{chat.title}</span>
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="대화 메뉴"
+                            className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-background group-hover:opacity-100"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuItem onClick={() => handleRenameChat(chat)}>
+                            📝 이름 변경
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => handleDeleteChat(chat)}
+                          >
+                            🗑️ 삭제
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 최근 문서 */}
               <div className="border-t pt-4">
                 <div className="px-2 text-xs font-medium text-muted-foreground">최근 문서</div>
                 <div className="mt-2 space-y-1">
@@ -444,6 +639,9 @@ export default function Home() {
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuItem onClick={() => setLocation(getEditUrl(doc))}>
+                            ✏️ 편집
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleRenameDocument(doc)}>
                             📝 이름 변경
                           </DropdownMenuItem>
@@ -499,7 +697,7 @@ export default function Home() {
                             value={chatInput}
                             onChange={(event) => setChatInput(event.target.value)}
                             onKeyDown={handleChatKeyDown}
-                            placeholder="티처메이트에게 물어보기"
+                            placeholder={isSending ? "답변을 생성하고 있습니다..." : "티처메이트에게 물어보기"}
                             rows={2}
                             className="resize-none border-0 focus-visible:ring-0 text-center text-base min-h-[96px]"
                             maxLength={10000}
@@ -511,11 +709,20 @@ export default function Home() {
                           )}
                         </div>
                         <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={handleSendMessage}
-                          disabled={isSending || !chatInput.trim()}
-                          className="rounded-full"
+                          disabled={!isSending && !chatInput.trim()}
+                          className={`rounded-full transition-colors ${
+                            isSending
+                              ? "bg-gray-100 text-gray-500"
+                              : chatInput.trim()
+                              ? "bg-blue-500 text-white hover:bg-blue-600"
+                              : "bg-gray-100 text-gray-400"
+                          }`}
+                          aria-label={isSending ? "생성 중" : "전송"}
                         >
-                          {isSending ? <span className="text-xs">전송중</span> : <Send className="h-4 w-4" />}
+                          {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUpIcon />}
                         </Button>
                       </div>
                       {attachedFiles.length > 0 && (
@@ -559,6 +766,7 @@ export default function Home() {
                           </div>
                         </div>
                       ))}
+                      {isSending && <TypingIndicator />}
                     </div>
                     <div className="border-t bg-background px-6 py-6">
                       <div className="mx-auto max-w-3xl">
@@ -582,18 +790,27 @@ export default function Home() {
                               value={chatInput}
                               onChange={(event) => setChatInput(event.target.value)}
                               onKeyDown={handleChatKeyDown}
-                              placeholder="티처메이트에게 물어보기"
+                              placeholder={isSending ? "답변을 생성하고 있습니다..." : "티처메이트에게 물어보기"}
                               rows={2}
                               className="resize-none border-0 focus-visible:ring-0 text-base min-h-[96px]"
                               maxLength={10000}
                             />
                           </div>
                           <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={handleSendMessage}
-                            disabled={isSending || !chatInput.trim()}
-                            className="rounded-full"
+                            disabled={!isSending && !chatInput.trim()}
+                            className={`rounded-full transition-colors ${
+                              isSending
+                                ? "bg-gray-100 text-gray-500"
+                                : chatInput.trim()
+                                ? "bg-blue-500 text-white hover:bg-blue-600"
+                                : "bg-gray-100 text-gray-400"
+                            }`}
+                            aria-label={isSending ? "생성 중" : "전송"}
                           >
-                            {isSending ? <span className="text-xs">전송중</span> : <Send className="h-4 w-4" />}
+                            {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUpIcon />}
                           </Button>
                         </div>
                         {attachedFiles.length > 0 && (

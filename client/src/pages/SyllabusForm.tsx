@@ -1,8 +1,11 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Sparkles, Plus, Trash2, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { AIStyledButton, SparkleIcon } from "@/components/AIGenerateButton";
+import { DocumentSaveButton, AutoSaveIndicator } from "@/components/DocumentSaveButton";
+import { useDocumentSave } from "@/hooks/use-document-save";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -248,6 +251,104 @@ export default function SyllabusForm() {
     queryKey: ["/api/auth/profile"],
     retry: false,
   });
+
+  const schoolName = profile?.schoolName || institution || "학교명";
+
+  // 문서 저장 기능
+  const getFormDataForSave = useCallback(() => ({
+    institution,
+    semester,
+    courseType,
+    courseName,
+    courseDescription,
+    subjectArea,
+    courseCategory,
+    instructorType,
+    instructorName,
+    instructorAffiliation,
+    instructorEmail,
+    coInstructorType,
+    coInstructorName,
+    coInstructorAffiliation,
+    coInstructorEmail,
+    credits,
+    totalSessions,
+    schedule,
+    targetGrade,
+    capacity,
+    location,
+    scope,
+    classTypes,
+    textbook,
+    materials,
+    evalMethod,
+    writtenRatio,
+    performanceRatio,
+    evalItems,
+    scheduleRows,
+    remoteMethod,
+    remoteNotes,
+  }), [institution, semester, courseType, courseName, courseDescription, subjectArea, courseCategory, instructorType, instructorName, instructorAffiliation, instructorEmail, coInstructorType, coInstructorName, coInstructorAffiliation, coInstructorEmail, credits, totalSessions, schedule, targetGrade, capacity, location, scope, classTypes, textbook, materials, evalMethod, writtenRatio, performanceRatio, evalItems, scheduleRows, remoteMethod, remoteNotes]);
+
+  const getTitle = useCallback(() => `${semester || ""} ${courseName || "강의계획서"}`, [semester, courseName]);
+
+  const getContent = useCallback(() => {
+    return JSON.stringify(getFormDataForSave());
+  }, [getFormDataForSave]);
+
+  const handleLoadDocument = useCallback((data: Record<string, unknown>) => {
+    if (data.institution) setInstitution(data.institution as string);
+    if (data.semester) setSemester(data.semester as string);
+    if (data.courseType) setCourseType(data.courseType as string);
+    if (data.courseName) setCourseName(data.courseName as string);
+    if (data.courseDescription) setCourseDescription(data.courseDescription as string);
+    if (data.subjectArea) setSubjectArea(data.subjectArea as string);
+    if (data.courseCategory) setCourseCategory(data.courseCategory as string);
+    if (data.instructorType) setInstructorType(data.instructorType as string);
+    if (data.instructorName) setInstructorName(data.instructorName as string);
+    if (data.instructorAffiliation) setInstructorAffiliation(data.instructorAffiliation as string);
+    if (data.instructorEmail) setInstructorEmail(data.instructorEmail as string);
+    if (data.coInstructorType) setCoInstructorType(data.coInstructorType as string);
+    if (data.coInstructorName) setCoInstructorName(data.coInstructorName as string);
+    if (data.coInstructorAffiliation) setCoInstructorAffiliation(data.coInstructorAffiliation as string);
+    if (data.coInstructorEmail) setCoInstructorEmail(data.coInstructorEmail as string);
+    if (data.credits) setCredits(data.credits as string);
+    if (data.totalSessions) setTotalSessions(data.totalSessions as string);
+    if (data.schedule) setSchedule(data.schedule as string);
+    if (data.targetGrade) setTargetGrade(data.targetGrade as string);
+    if (data.capacity) setCapacity(data.capacity as string);
+    if (data.location) setLocation(data.location as string);
+    if (data.scope) setScope(data.scope as string);
+    if (data.classTypes) setClassTypes(data.classTypes as string[]);
+    if (data.textbook) setTextbook(data.textbook as string);
+    if (data.materials) setMaterials(data.materials as string);
+    if (data.evalMethod) setEvalMethod(data.evalMethod as string);
+    if (data.writtenRatio) setWrittenRatio(data.writtenRatio as string);
+    if (data.performanceRatio) setPerformanceRatio(data.performanceRatio as string);
+    if (data.evalItems) setEvalItems(data.evalItems as EvalItem[]);
+    if (data.scheduleRows) setScheduleRows(data.scheduleRows as ScheduleRow[]);
+    if (data.remoteMethod) setRemoteMethod(data.remoteMethod as string);
+    if (data.remoteNotes) setRemoteNotes(data.remoteNotes as string);
+  }, []);
+
+  const {
+    isSaving,
+    lastSavedAt,
+    saveError,
+    saveDocument,
+    triggerAutoSave,
+  } = useDocumentSave({
+    documentType: "강의계획서",
+    getFormData: getFormDataForSave,
+    getTitle,
+    getContent,
+    onLoadDocument: handleLoadDocument,
+  });
+
+  // 폼 변경 시 자동 저장 트리거
+  useEffect(() => {
+    triggerAutoSave();
+  }, [institution, semester, courseType, courseName, courseDescription, subjectArea, courseCategory, instructorType, instructorName, instructorAffiliation, instructorEmail, coInstructorType, coInstructorName, coInstructorAffiliation, coInstructorEmail, credits, totalSessions, schedule, targetGrade, capacity, location, scope, classTypes, textbook, materials, evalMethod, writtenRatio, performanceRatio, evalItems, scheduleRows, remoteMethod, remoteNotes, triggerAutoSave]);
 
   const getFormContext = () => ({
     institution,
@@ -624,7 +725,19 @@ export default function SyllabusForm() {
                 <p className="text-sm text-muted-foreground">필요한 정보를 입력하면 AI가 항목을 작성합니다</p>
               </div>
             </div>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">PDF 다운로드</Button>
+            <div className="flex items-center gap-3">
+              <AutoSaveIndicator
+                lastSavedAt={lastSavedAt}
+                isSaving={isSaving}
+                error={saveError}
+              />
+              <DocumentSaveButton
+                onClick={() => saveDocument("completed")}
+                isSaving={isSaving}
+                variant="header"
+              />
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90">PDF 다운로드</Button>
+            </div>
           </div>
         </div>
       </header>
@@ -724,20 +837,11 @@ export default function SyllabusForm() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">과목 설명 및 특성 <span className="text-red-500">*</span></span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
+                    <AIStyledButton
                       onClick={() => generateFieldMutation.mutate({ fieldName: "courseDescription", fieldLabel: "과목 설명" })}
                       disabled={generatingField === "courseDescription" || isGeneratingAll}
-                    >
-                      {generatingField === "courseDescription" ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                          생성 중...
-                        </>
-                      ) : "AI 생성"}
-                    </Button>
+                      isLoading={generatingField === "courseDescription"}
+                    />
                   </div>
                   <Textarea
                     value={courseDescription}
@@ -1055,20 +1159,11 @@ export default function SyllabusForm() {
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-foreground">주차별 강의 계획</h2>
                   <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
+                    <AIStyledButton
                       onClick={() => generateFieldMutation.mutate({ fieldName: "weeklySchedule", fieldLabel: "주차별 계획" })}
                       disabled={generatingField === "weeklySchedule" || isGeneratingAll}
-                    >
-                      {generatingField === "weeklySchedule" ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                          생성 중...
-                        </>
-                      ) : "AI 생성"}
-                    </Button>
+                      isLoading={generatingField === "weeklySchedule"}
+                    />
                     <Button type="button" variant="ghost" size="sm" onClick={handleAddScheduleRow}>
                       <Plus className="w-3 h-3 mr-1" /> 행 추가
                     </Button>
@@ -1208,19 +1303,29 @@ export default function SyllabusForm() {
                 <Button type="button" variant="outline" onClick={() => setIsPreviewOpen(true)}>
                   미리보기
                 </Button>
-                <Button
+                <DocumentSaveButton
+                  onClick={() => saveDocument("completed")}
+                  isSaving={isSaving}
+                  variant="footer"
+                />
+                <button
                   type="button"
-                  className="flex-1"
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-blue-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg hover:from-violet-600 hover:to-blue-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => generateAllMutation.mutate()}
                   disabled={generateAllMutation.isPending || isGeneratingAll}
                 >
                   {generateAllMutation.isPending || isGeneratingAll ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       AI 전부 생성 중...
                     </>
-                  ) : "AI 전부 생성"}
-                </Button>
+                  ) : (
+                    <>
+                      <SparkleIcon />
+                      AI 전부 생성
+                    </>
+                  )}
+                </button>
                 <Button type="button" variant="secondary" onClick={handleReset}>
                   초기화
                 </Button>

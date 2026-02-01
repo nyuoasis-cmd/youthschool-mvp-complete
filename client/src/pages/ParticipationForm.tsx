@@ -1,8 +1,11 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Sparkles, Loader2, Wand2, Eye, Plus, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { AIStyledButton, SparkleIcon } from "@/components/AIGenerateButton";
+import { DocumentSaveButton, AutoSaveIndicator } from "@/components/DocumentSaveButton";
+import { useDocumentSave } from "@/hooks/use-document-save";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -180,6 +183,85 @@ export default function ParticipationForm() {
   });
 
   const schoolName = profile?.schoolName || school || "학교명";
+
+  // 문서 저장 기능
+  const getFormData = useCallback(() => ({
+    programName,
+    programType,
+    organizer,
+    participationCategory,
+    applicantName,
+    school,
+    grade,
+    classNumber,
+    studentNumber,
+    contact,
+    guardianEnabled,
+    guardianName,
+    guardianRelationship,
+    guardianContact,
+    teamEnabled,
+    teamMembers,
+    motivationEnabled,
+    motivationContent,
+    notices,
+    personalInfoConsent,
+    copyrightConsent,
+    signatureDate,
+    recipient,
+    schoolName,
+  }), [programName, programType, organizer, participationCategory, applicantName, school, grade, classNumber, studentNumber, contact, guardianEnabled, guardianName, guardianRelationship, guardianContact, teamEnabled, teamMembers, motivationEnabled, motivationContent, notices, personalInfoConsent, copyrightConsent, signatureDate, recipient, schoolName]);
+
+  const getTitle = useCallback(() => `${programName || "참가신청서"} - ${applicantName || ""}`, [programName, applicantName]);
+
+  const getContent = useCallback(() => {
+    return JSON.stringify(getFormData());
+  }, [getFormData]);
+
+  const handleLoadDocument = useCallback((data: Record<string, unknown>) => {
+    if (data.programName) setProgramName(data.programName as string);
+    if (data.programType) setProgramType(data.programType as string);
+    if (data.organizer) setOrganizer(data.organizer as string);
+    if (data.participationCategory) setParticipationCategory(data.participationCategory as string);
+    if (data.applicantName) setApplicantName(data.applicantName as string);
+    if (data.school) setSchool(data.school as string);
+    if (data.grade) setGrade(data.grade as string);
+    if (data.classNumber) setClassNumber(data.classNumber as string);
+    if (data.studentNumber) setStudentNumber(data.studentNumber as string);
+    if (data.contact) setContact(data.contact as string);
+    if (data.guardianEnabled !== undefined) setGuardianEnabled(data.guardianEnabled as boolean);
+    if (data.guardianName) setGuardianName(data.guardianName as string);
+    if (data.guardianRelationship) setGuardianRelationship(data.guardianRelationship as string);
+    if (data.guardianContact) setGuardianContact(data.guardianContact as string);
+    if (data.teamEnabled !== undefined) setTeamEnabled(data.teamEnabled as boolean);
+    if (data.teamMembers) setTeamMembers(data.teamMembers as TeamMember[]);
+    if (data.motivationEnabled !== undefined) setMotivationEnabled(data.motivationEnabled as boolean);
+    if (data.motivationContent) setMotivationContent(data.motivationContent as string);
+    if (data.notices) setNotices(data.notices as string);
+    if (data.personalInfoConsent !== undefined) setPersonalInfoConsent(data.personalInfoConsent as boolean);
+    if (data.copyrightConsent !== undefined) setCopyrightConsent(data.copyrightConsent as boolean);
+    if (data.signatureDate) setSignatureDate(data.signatureDate as string);
+    if (data.recipient) setRecipient(data.recipient as string);
+  }, []);
+
+  const {
+    isSaving,
+    lastSavedAt,
+    saveError,
+    saveDocument,
+    triggerAutoSave,
+  } = useDocumentSave({
+    documentType: "참가신청서",
+    getFormData,
+    getTitle,
+    getContent,
+    onLoadDocument: handleLoadDocument,
+  });
+
+  // 폼 변경 시 자동 저장 트리거
+  useEffect(() => {
+    triggerAutoSave();
+  }, [programName, programType, organizer, participationCategory, applicantName, school, grade, classNumber, studentNumber, contact, guardianEnabled, guardianName, guardianRelationship, guardianContact, teamEnabled, teamMembers, motivationEnabled, motivationContent, notices, personalInfoConsent, copyrightConsent, signatureDate, recipient, triggerAutoSave]);
 
   const getFormContext = () => ({
     programName,
@@ -409,7 +491,19 @@ export default function ParticipationForm() {
                 <p className="text-sm text-muted-foreground">필요한 정보를 입력하면 AI가 항목을 작성합니다</p>
               </div>
             </div>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">PDF 다운로드</Button>
+            <div className="flex items-center gap-3">
+              <AutoSaveIndicator
+                lastSavedAt={lastSavedAt}
+                isSaving={isSaving}
+                error={saveError}
+              />
+              <DocumentSaveButton
+                onClick={() => saveDocument("completed")}
+                isSaving={isSaving}
+                variant="header"
+              />
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90">PDF 다운로드</Button>
+            </div>
           </div>
         </div>
       </header>
@@ -678,25 +772,11 @@ export default function ParticipationForm() {
             <section ref={setSectionRef("section-notices")} className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-foreground">유의사항</h2>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
+                <AIStyledButton
                   onClick={() => generateFieldMutation.mutate({ fieldName: "notices", fieldLabel: "유의사항" })}
                   disabled={generatingField === "notices" || isGeneratingAll}
-                >
-                  {generatingField === "notices" ? (
-                    <>
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      생성 중...
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="w-3 h-3 mr-1" />
-                      AI 생성
-                    </>
-                  )}
-                </Button>
+                  isLoading={generatingField === "notices"}
+                />
               </div>
               <Textarea
                 placeholder="예:&#10;• 제출된 작품은 반환하지 않습니다.&#10;• 타 공모전 수상작이나 표절작은 심사에서 제외됩니다."
@@ -777,24 +857,29 @@ export default function ParticipationForm() {
                 <Eye className="w-4 h-4 mr-2" />
                 미리보기
               </Button>
-              <Button
+              <DocumentSaveButton
+                onClick={() => saveDocument("completed")}
+                isSaving={isSaving}
+                variant="footer"
+              />
+              <button
                 type="button"
-                className="flex-1"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-blue-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg hover:from-violet-600 hover:to-blue-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={() => generateAllMutation.mutate()}
                 disabled={generateAllMutation.isPending || isGeneratingAll}
               >
                 {generateAllMutation.isPending || isGeneratingAll ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     AI 전부 생성 중...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4 mr-2" />
+                    <SparkleIcon />
                     AI 전부 생성
                   </>
                 )}
-              </Button>
+              </button>
               <Button type="button" variant="secondary" onClick={handleReset}>
                 초기화
               </Button>

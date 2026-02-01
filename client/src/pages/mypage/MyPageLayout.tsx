@@ -28,10 +28,21 @@ export default function MyPageLayout({ activePath, children }: MyPageLayoutProps
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="text-lg font-semibold text-foreground">
-            티처메이트
-          </Link>
+        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+          <a href="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
+            {/* Logo Icon */}
+            <div className="w-8 h-8 relative">
+              <div
+                className="absolute w-3 h-7 left-1 top-0.5 bg-[#1B2A4A] rounded-sm"
+                style={{ transform: "rotate(-8deg)" }}
+              />
+              <div className="absolute w-2.5 h-5 right-0.5 top-1.5 bg-[#7EC8B5] rounded-sm" />
+            </div>
+            {/* Logo Text */}
+            <span className="text-lg font-extrabold text-[#1B2A4A] tracking-tight">
+              teachermate
+            </span>
+          </a>
         </div>
       </header>
 

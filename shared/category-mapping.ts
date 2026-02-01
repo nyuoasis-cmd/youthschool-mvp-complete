@@ -16,6 +16,7 @@ export type TeacherMateDocumentType =
   | "강의계획서"
   | "채용공고"
   | "결석신고서"
+  | "개인정보 동의서"
   | "HWP 양식으로 작성";
 
 export const DOCUMENT_TYPE_TO_RAG_CATEGORY_IDS: Record<
@@ -52,6 +53,7 @@ export const DOCUMENT_TYPE_TO_RAG_CATEGORY_IDS: Record<
   "강의계획서": ["curriculum", "lecture-plan", "work-plan"],
   "채용공고": ["recruitment"],
   "결석신고서": ["attendance", "home-letter", "health-safety"],
+  "개인정보 동의서": ["lecturer-background", "lecturer-security", "home-letter", "parents-meeting"],
   "HWP 양식으로 작성": [],
 };
 

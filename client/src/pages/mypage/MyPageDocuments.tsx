@@ -46,6 +46,22 @@ const sortOptions = [
   { value: "title:asc", label: "제목순" },
 ];
 
+// 문서 타입별 폼 페이지 URL 매핑
+const getEditUrl = (doc: DocumentRow): string => {
+  const typeToPath: Record<string, string> = {
+    "급식안내문": "/create/meal-notice",
+    "결석신고서": "/create/absence-report",
+    "수능안내문": "/create/suneung-notice",
+    "채용공고": "/create/recruitment-notice",
+    "참가신청서": "/create/participation-form",
+    "강의계획서": "/create/syllabus",
+    "현장체험학습": "/create/field-trip",
+    "개인정보동의서": "/create/consent-form",
+  };
+  const basePath = typeToPath[doc.documentType] || `/mypage/document/${doc.id}`;
+  return `${basePath}?id=${doc.id}`;
+};
+
 export default function MyPageDocuments({ initialStatus, initialFavorite }: DocumentsPageProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -238,7 +254,7 @@ export default function MyPageDocuments({ initialStatus, initialFavorite }: Docu
                       </Link>
                     </Button>
                     <Button variant="outline" size="sm" asChild>
-                      <Link href={`/mypage/document/${doc.id}?edit=1`}>
+                      <Link href={getEditUrl(doc)}>
                         수정
                       </Link>
                     </Button>
@@ -273,7 +289,7 @@ export default function MyPageDocuments({ initialStatus, initialFavorite }: Docu
                     </Link>
                   </Button>
                   <Button variant="ghost" size="icon" asChild>
-                    <Link href={`/mypage/document/${doc.id}?edit=1`}>
+                    <Link href={getEditUrl(doc)}>
                       수정
                     </Link>
                   </Button>

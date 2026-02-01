@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useCallback } from "react";
+import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { Link } from "wouter";
@@ -6,6 +6,9 @@ import PDFDownloadButton from "@/components/PDFDownloadButton";
 import MealNoticePreview from "@/components/MealNoticePreview";
 import DateRangePicker, { DateRangeValue } from "@/components/common/DateRangePicker";
 import { Button } from "@/components/ui/button";
+import { AIStyledButton, SparkleIcon } from "@/components/AIGenerateButton";
+import { DocumentSaveButton, AutoSaveIndicator } from "@/components/DocumentSaveButton";
+import { useDocumentSave } from "@/hooks/use-document-save";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -132,6 +135,67 @@ export default function MealNoticeForm() {
   const schoolName = profile?.schoolName || "학교명";
   const signatureText = principalSignature || (schoolName ? `${schoolName}장` : "");
   const pdfFileName = `${academicYear}_${month}_급식안내문`;
+
+  // 문서 저장 기능
+  const getFormData = useCallback(() => ({
+    academicYear,
+    month,
+    greeting,
+    mealPeriod,
+    paymentPeriod,
+    paymentDetails,
+    paymentMethod,
+    notices,
+    issueDate,
+    principalSignature,
+    schoolName,
+  }), [academicYear, month, greeting, mealPeriod, paymentPeriod, paymentDetails, paymentMethod, notices, issueDate, principalSignature, schoolName]);
+
+  const getTitle = useCallback(() => `${academicYear} ${month} 급식안내문`, [academicYear, month]);
+
+  const getContent = useCallback(() => {
+    return JSON.stringify({
+      title: previewTitle,
+      greeting,
+      mealPeriod: mealPeriodText,
+      paymentPeriod: paymentPeriodText,
+      paymentDetails,
+      paymentMethod,
+      notices: notices.map(n => n.content).filter(Boolean),
+    });
+  }, [previewTitle, greeting, mealPeriodText, paymentPeriodText, paymentDetails, paymentMethod, notices]);
+
+  const handleLoadDocument = useCallback((data: Record<string, unknown>) => {
+    if (data.academicYear) setAcademicYear(data.academicYear as string);
+    if (data.month) setMonth(data.month as string);
+    if (data.greeting) setGreeting(data.greeting as string);
+    if (data.mealPeriod) setMealPeriod(data.mealPeriod as DateRangeValue);
+    if (data.paymentPeriod) setPaymentPeriod(data.paymentPeriod as DateRangeValue);
+    if (data.paymentDetails) setPaymentDetails(data.paymentDetails as PaymentRow[]);
+    if (data.paymentMethod) setPaymentMethod(data.paymentMethod as string);
+    if (data.notices) setNotices(data.notices as NoticeItem[]);
+    if (data.issueDate) setIssueDate(data.issueDate as string);
+    if (data.principalSignature) setPrincipalSignature(data.principalSignature as string);
+  }, []);
+
+  const {
+    isSaving,
+    lastSavedAt,
+    saveError,
+    saveDocument,
+    triggerAutoSave,
+  } = useDocumentSave({
+    documentType: "급식안내문",
+    getFormData,
+    getTitle,
+    getContent,
+    onLoadDocument: handleLoadDocument,
+  });
+
+  // 폼 변경 시 자동 저장 트리거
+  useEffect(() => {
+    triggerAutoSave();
+  }, [academicYear, month, greeting, mealPeriod, paymentPeriod, paymentDetails, paymentMethod, notices, issueDate, principalSignature, triggerAutoSave]);
 
   // 섹션으로 스크롤
   const scrollToSection = useCallback((sectionId: string) => {
@@ -458,10 +522,22 @@ export default function MealNoticeForm() {
                 <p className="text-sm text-muted-foreground">필요한 정보를 입력하면 AI가 항목을 작성합니다</p>
               </div>
             </div>
-            <PDFDownloadButton
-              contentRef={documentRef}
-              fileName={pdfFileName}
-            />
+            <div className="flex items-center gap-3">
+              <AutoSaveIndicator
+                lastSavedAt={lastSavedAt}
+                isSaving={isSaving}
+                error={saveError}
+              />
+              <DocumentSaveButton
+                onClick={() => saveDocument("completed")}
+                isSaving={isSaving}
+                variant="header"
+              />
+              <PDFDownloadButton
+                contentRef={documentRef}
+                fileName={pdfFileName}
+              />
+            </div>
           </div>
         </div>
       </header>
@@ -521,20 +597,11 @@ export default function MealNoticeForm() {
             <section ref={setSectionRef("section-greeting")} className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-foreground">인사말</h2>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
+                <AIStyledButton
                   onClick={() => generateFieldMutation.mutate({ fieldName: "greeting", fieldLabel: "인사말" })}
                   disabled={generatingField === "greeting" || isGeneratingAll}
-                >
-                  {generatingField === "greeting" ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                      생성 중...
-                    </>
-                  ) : "AI 생성"}
-                </Button>
+                  isLoading={generatingField === "greeting"}
+                />
               </div>
               <Textarea
                 placeholder="학부모님께 전달할 인사말을 입력하세요."
@@ -571,20 +638,11 @@ export default function MealNoticeForm() {
             <section ref={setSectionRef("section-payment")} className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-foreground">납부내역</h2>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
+                <AIStyledButton
                   onClick={() => generateFieldMutation.mutate({ fieldName: "paymentDetails", fieldLabel: "납부내역" })}
                   disabled={generatingField === "paymentDetails" || isGeneratingAll}
-                >
-                  {generatingField === "paymentDetails" ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                      생성 중...
-                    </>
-                  ) : "AI 생성"}
-                </Button>
+                  isLoading={generatingField === "paymentDetails"}
+                />
               </div>
               <div className="overflow-x-auto rounded-lg border border-border">
                 <table className="w-full text-sm">
@@ -679,20 +737,11 @@ export default function MealNoticeForm() {
             <section ref={setSectionRef("section-notices")} className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-foreground">추가 안내 항목</h2>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
+                <AIStyledButton
                   onClick={() => generateFieldMutation.mutate({ fieldName: "notices", fieldLabel: "추가 안내 항목" })}
                   disabled={generatingField === "notices" || isGeneratingAll}
-                >
-                  {generatingField === "notices" ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                      생성 중...
-                    </>
-                  ) : "AI 생성"}
-                </Button>
+                  isLoading={generatingField === "notices"}
+                />
               </div>
               <div className="space-y-3">
                 {notices.map((notice) => (
@@ -751,19 +800,29 @@ export default function MealNoticeForm() {
               <Button type="button" variant="outline" onClick={() => setIsPreviewOpen(true)}>
                 미리보기
               </Button>
-              <Button
+              <DocumentSaveButton
+                onClick={() => saveDocument("completed")}
+                isSaving={isSaving}
+                variant="footer"
+              />
+              <button
                 type="button"
-                className="flex-1"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-blue-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg hover:from-violet-600 hover:to-blue-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={() => generateAllMutation.mutate()}
                 disabled={generateAllMutation.isPending || isGeneratingAll}
               >
                 {generateAllMutation.isPending || isGeneratingAll ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     AI 전부 생성 중...
                   </>
-                ) : "AI 전부 생성"}
-              </Button>
+                ) : (
+                  <>
+                    <SparkleIcon />
+                    AI 전부 생성
+                  </>
+                )}
+              </button>
               <Button type="button" variant="secondary" onClick={handleReset}>
                 초기화
               </Button>

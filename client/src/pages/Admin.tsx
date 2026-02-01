@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ArrowLeft, FileText, Layout, Trash2, BarChart3, Edit, Loader2, Upload, CheckCircle2, AlertCircle, UserPlus } from "lucide-react";
+import { ArrowLeft, FileText, Layout, Trash2, BarChart3, Edit, Loader2, Upload, CheckCircle2, AlertCircle, UserPlus, Coins } from "lucide-react";
 import type { Template, GeneratedDocument, UploadedTemplate } from "@shared/schema";
 
 interface Stats {
@@ -57,6 +57,16 @@ interface AdminUserListResponse {
 interface UserStatsResponse {
   success: boolean;
   data: Record<string, number>;
+}
+
+interface TokenUsageResponse {
+  success: boolean;
+  data: {
+    today: { requests: number; estimatedCost: number };
+    thisWeek: { requests: number; estimatedCost: number };
+    thisMonth: { requests: number; estimatedCost: number };
+    byEndpoint: Record<string, number>;
+  };
 }
 
 export default function Admin() {
@@ -126,6 +136,10 @@ export default function Admin() {
 
   const { data: allUsersResponse, isLoading: allUsersLoading } = useQuery<AdminUserListResponse>({
     queryKey: ["/api/admin/users?limit=50&sort=created_at&order=desc"],
+  });
+
+  const { data: tokenUsage, isLoading: tokenUsageLoading } = useQuery<TokenUsageResponse>({
+    queryKey: ["/api/admin/token-usage"],
   });
 
   const crawlerTemplates = useMemo(
@@ -660,6 +674,7 @@ export default function Admin() {
           <TabsList>
             <TabsTrigger value="approvals" data-testid="tab-approvals">회원 승인</TabsTrigger>
             <TabsTrigger value="users" data-testid="tab-users">회원 관리</TabsTrigger>
+            <TabsTrigger value="token-usage" data-testid="tab-token-usage">토큰 사용량</TabsTrigger>
             <TabsTrigger value="templates" data-testid="tab-templates">템플릿 관리</TabsTrigger>
             <TabsTrigger value="documents" data-testid="tab-documents">문서 관리</TabsTrigger>
             <TabsTrigger value="crawler" data-testid="tab-crawler">문서 수집</TabsTrigger>
@@ -907,6 +922,118 @@ export default function Admin() {
                   <p className="text-sm text-muted-foreground">아직 등록된 회원이 없습니다.</p>
                 </CardContent>
               </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="token-usage" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">AI 토큰 사용량</h2>
+            </div>
+
+            {tokenUsageLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                        <Coins className="h-4 w-4" />
+                        오늘 사용량
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-semibold">
+                        {tokenUsage?.data?.today?.requests ?? 0}회
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        예상 비용: ${(tokenUsage?.data?.today?.estimatedCost ?? 0).toFixed(4)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                        <Coins className="h-4 w-4" />
+                        이번 주 사용량
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-semibold">
+                        {tokenUsage?.data?.thisWeek?.requests ?? 0}회
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        예상 비용: ${(tokenUsage?.data?.thisWeek?.estimatedCost ?? 0).toFixed(4)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                        <Coins className="h-4 w-4" />
+                        이번 달 사용량
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-semibold">
+                        {tokenUsage?.data?.thisMonth?.requests ?? 0}회
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        예상 비용: ${(tokenUsage?.data?.thisMonth?.estimatedCost ?? 0).toFixed(4)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">엔드포인트별 사용량</CardTitle>
+                    <CardDescription>API 엔드포인트별 요청 횟수</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {tokenUsage?.data?.byEndpoint && Object.keys(tokenUsage.data.byEndpoint).length > 0 ? (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>엔드포인트</TableHead>
+                            <TableHead className="text-right">요청 수</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {Object.entries(tokenUsage.data.byEndpoint).map(([endpoint, count]) => (
+                            <TableRow key={endpoint}>
+                              <TableCell className="font-mono text-sm">{endpoint}</TableCell>
+                              <TableCell className="text-right">{count}회</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        아직 사용량 데이터가 없습니다.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+                      <div className="text-sm text-muted-foreground">
+                        <p className="font-medium text-foreground mb-1">비용 관리 안내</p>
+                        <ul className="list-disc list-inside space-y-1">
+                          <li>현재 Rate Limit: AI 문서 생성 분당 5회, 시간당 50회, 일일 200회</li>
+                          <li>채팅: 분당 10회, 시간당 100회</li>
+                          <li>OpenAI 대시보드에서 실제 비용을 확인하세요</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
             )}
           </TabsContent>
 

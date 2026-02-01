@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "../db";
 import { chats, chatMessages } from "@shared/schema";
 import { requireFullAuth } from "../auth/middleware";
+import { chatRateLimit, chatHourlyLimit, dailyAiLimit } from "../middleware/rateLimit";
 import { and, desc, eq, ilike, isNull, inArray } from "drizzle-orm";
 import crypto from "crypto";
 import OpenAI from "openai";
@@ -72,24 +73,42 @@ async function generateAssistantReply(content: string) {
 - 친절하고 명확하게 답변해 주세요.
 - 관련 참고 문서가 제공된 경우, 해당 내용을 참고하여 더 정확한 답변을 해주세요.${ragContext}`;
 
-  const completion = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    max_tokens: 1200,
-    temperature: 0.7,
-    messages: [
-      {
-        role: "system",
-        content: systemPrompt,
-      },
-      { role: "user", content },
-    ],
-  });
+  try {
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 1200,
+      temperature: 0.7,
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt,
+        },
+        { role: "user", content },
+      ],
+    });
 
-  return completion.choices[0]?.message?.content || "응답을 생성하지 못했습니다.";
+    return completion.choices[0]?.message?.content || "응답을 생성하지 못했습니다.";
+  } catch (error: any) {
+    console.error("[Chat AI] OpenAI API error:", error?.message || error);
+
+    // 에러 유형별 사용자 친화적 메시지
+    if (error?.status === 429) {
+      return "요청이 많아 잠시 후 다시 시도해주세요. (API 제한)";
+    }
+    if (error?.code === "ETIMEDOUT" || error?.code === "ECONNABORTED") {
+      return "응답 생성 시간이 초과되었습니다. 다시 시도해주세요.";
+    }
+    if (error?.status === 401 || error?.status === 403) {
+      return "AI 서비스 인증에 문제가 있습니다. 관리자에게 문의해주세요.";
+    }
+
+    return "AI 응답 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+  }
 }
 
 router.get("/chats", requireFullAuth, async (req: Request, res: Response) => {
   try {
+    console.log("[Chat] GET /chats - user:", req.user?.id);
     const parseResult = listChatsSchema.safeParse(req.query);
     if (!parseResult.success) {
       return res.status(400).json({ error: "잘못된 요청입니다" });
@@ -132,8 +151,9 @@ router.get("/chats", requireFullAuth, async (req: Request, res: Response) => {
         preview: lastMessageMap.get(chat.chatId) || "",
       })),
     });
-  } catch (error) {
-    console.error("Chat list error:", error);
+  } catch (error: any) {
+    console.error("Chat list error:", error?.message || error);
+    console.error("Chat list stack:", error?.stack);
     res.status(500).json({ error: "서버 오류가 발생했습니다" });
   }
 });
@@ -193,7 +213,7 @@ router.get("/chats/:chatId", requireFullAuth, async (req: Request, res: Response
   }
 });
 
-router.post("/chats/:chatId/messages", requireFullAuth, async (req: Request, res: Response) => {
+router.post("/chats/:chatId/messages", requireFullAuth, chatRateLimit, chatHourlyLimit, dailyAiLimit, async (req: Request, res: Response) => {
   try {
     const { chatId } = req.params;
     const result = createMessageSchema.safeParse(req.body);
@@ -253,6 +273,31 @@ router.post("/chats/:chatId/messages", requireFullAuth, async (req: Request, res
     });
   } catch (error) {
     console.error("Chat message error:", error);
+    res.status(500).json({ error: "서버 오류가 발생했습니다" });
+  }
+});
+
+router.put("/chats/:chatId", requireFullAuth, async (req: Request, res: Response) => {
+  try {
+    const { chatId } = req.params;
+    const { title } = req.body;
+
+    if (!title || typeof title !== "string") {
+      return res.status(400).json({ error: "제목을 입력해주세요" });
+    }
+
+    const result = await db
+      .update(chats)
+      .set({ title: title.trim(), updatedAt: new Date() })
+      .where(and(eq(chats.chatId, chatId), eq(chats.userId, req.user!.id), isNull(chats.deletedAt)));
+
+    if ((result.rowCount ?? 0) === 0) {
+      return res.status(404).json({ error: "대화를 찾을 수 없습니다" });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Chat update error:", error);
     res.status(500).json({ error: "서버 오류가 발생했습니다" });
   }
 });

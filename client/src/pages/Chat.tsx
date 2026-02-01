@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
-import { Bot, Plus, Send, Search, Loader2, Paperclip, Mic, Menu, Wrench } from "lucide-react";
+import { Plus, Send, Search, Loader2, Paperclip, Mic, Menu, Wrench } from "lucide-react";
 
 interface ChatItem {
   chatId: string;
@@ -156,8 +156,16 @@ export default function Chat() {
           <Button variant="ghost" size="icon" onClick={() => setSidebarOpen((prev) => !prev)}>
             <Menu className="h-5 w-5" />
           </Button>
-          <Bot className="h-5 w-5 text-primary" />
-          <span className="font-semibold">티처메이트 AI</span>
+          <a href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+            <div className="w-7 h-7 relative">
+              <div
+                className="absolute w-2.5 h-6 left-1 top-0.5 bg-[#1B2A4A] rounded-sm"
+                style={{ transform: "rotate(-8deg)" }}
+              />
+              <div className="absolute w-2 h-4 right-0.5 top-1 bg-[#7EC8B5] rounded-sm" />
+            </div>
+            <span className="font-extrabold text-[#1B2A4A] tracking-tight">teachermate</span>
+          </a>
           <Badge variant="secondary">MVP</Badge>
         </div>
         <div className="flex items-center gap-3 text-sm text-muted-foreground">

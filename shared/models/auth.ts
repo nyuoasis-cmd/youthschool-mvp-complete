@@ -17,10 +17,12 @@ export const sessions = pgTable(
 // User types enum
 export const USER_TYPES = {
   TEACHER: "teacher",
-  INSTRUCTOR: "instructor",
-  SCHOOL_ADMIN: "school_admin",
+  STAFF: "staff",
   SYSTEM_ADMIN: "system_admin",
   OPERATOR: "operator",
+  // Legacy types (deprecated - kept for backward compatibility)
+  INSTRUCTOR: "instructor",
+  SCHOOL_ADMIN: "school_admin",
 } as const;
 
 export type UserType = typeof USER_TYPES[keyof typeof USER_TYPES];
@@ -36,13 +38,23 @@ export const USER_STATUS = {
 
 export type UserStatus = typeof USER_STATUS[keyof typeof USER_STATUS];
 
+// Auth provider enum
+export const AUTH_PROVIDERS = {
+  EMAIL: "email",
+  KAKAO: "kakao",
+} as const;
+
+export type AuthProvider = typeof AUTH_PROVIDERS[keyof typeof AUTH_PROVIDERS];
+
 // Users table - main user information
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: varchar("email", { length: 255 }).unique().notNull(),
-  password: varchar("password", { length: 255 }).notNull(),
+  password: varchar("password", { length: 255 }),
+  authProvider: varchar("auth_provider", { length: 20 }).default("email").$type<AuthProvider>(),
   userType: varchar("user_type", { length: 20 }).notNull().$type<UserType>(),
   name: varchar("name", { length: 100 }).notNull(),
+  nickname: varchar("nickname", { length: 50 }),
   phone: varchar("phone", { length: 20 }).notNull(),
   phoneVerified: boolean("phone_verified").default(false).notNull(),
   emailVerified: boolean("email_verified").default(false).notNull(),
@@ -52,6 +64,11 @@ export const users = pgTable("users", {
   purpose: varchar("purpose", { length: 50 }),
   additionalNotes: text("additional_notes"),
   profileImageUrl: varchar("profile_image_url", { length: 500 }),
+  // Kakao OAuth fields
+  kakaoId: varchar("kakao_id", { length: 100 }).unique(),
+  duties: jsonb("duties").$type<string[]>(),
+  dutiesEtc: varchar("duties_etc", { length: 200 }),
+  marketingAgreed: boolean("marketing_agreed").default(false),
   lastLoginAt: timestamp("last_login_at"),
   loginAttempts: integer("login_attempts").default(0).notNull(),
   lockedUntil: timestamp("locked_until"),
@@ -77,7 +94,7 @@ export const teachers = pgTable("teachers", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
   schoolName: varchar("school_name", { length: 200 }).notNull(),
-  schoolAddress: text("school_address").notNull(),
+  schoolAddress: text("school_address"), // Optional (removed required constraint)
   subject: varchar("subject", { length: 100 }),
   department: varchar("department", { length: 100 }),
   certificateFile: varchar("certificate_file", { length: 500 }),
@@ -99,7 +116,7 @@ export const instructors = pgTable("instructors", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// School admins table - additional info for school administrators
+// School admins table - additional info for school administrators (legacy)
 export const schoolAdmins = pgTable("school_admins", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
@@ -110,6 +127,16 @@ export const schoolAdmins = pgTable("school_admins", {
   approvalFile: varchar("approval_file", { length: 500 }).notNull(),
   approvedBy: integer("approved_by").references(() => users.id),
   approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Staff table - additional info for school staff members (new signup flow)
+export const staff = pgTable("staff", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull().unique(),
+  schoolName: varchar("school_name", { length: 200 }).notNull(),
+  position: varchar("position", { length: 100 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -164,6 +191,8 @@ export type Instructor = typeof instructors.$inferSelect;
 export type InsertInstructor = typeof instructors.$inferInsert;
 export type SchoolAdmin = typeof schoolAdmins.$inferSelect;
 export type InsertSchoolAdmin = typeof schoolAdmins.$inferInsert;
+export type Staff = typeof staff.$inferSelect;
+export type InsertStaff = typeof staff.$inferInsert;
 export type UserManagementLog = typeof userManagementLogs.$inferSelect;
 export type InsertUserManagementLog = typeof userManagementLogs.$inferInsert;
 
@@ -173,6 +202,7 @@ export const selectUserSchema = createSelectSchema(users);
 export const insertTeacherSchema = createInsertSchema(teachers);
 export const insertInstructorSchema = createInsertSchema(instructors);
 export const insertSchoolAdminSchema = createInsertSchema(schoolAdmins);
+export const insertStaffSchema = createInsertSchema(staff);
 export const insertUserManagementLogSchema = createInsertSchema(userManagementLogs);
 
 // ============================================
@@ -424,3 +454,66 @@ export const POSITION_OPTIONS = [
   "담당교사",
   "기타",
 ] as const;
+
+// Teacher duty options (담당 업무)
+export const TEACHER_DUTY_OPTIONS = [
+  "학급 담임",
+  "진로교육",
+  "창업교육/비즈쿨",
+  "SW·AI교육",
+  "자유학기제",
+  "동아리 운영",
+  "교무기획",
+  "연구/연수",
+  "방과후학교",
+  "기타",
+] as const;
+
+// Staff duty options (학교 구성원 담당 업무)
+export const STAFF_DUTY_OPTIONS = [
+  "총무/문서관리",
+  "인사/채용",
+  "예산/회계",
+  "급식 운영",
+  "시설/환경",
+  "방과후/돌봄",
+  "교육정보/전산",
+  "기타",
+] as const;
+
+// Staff position options
+export const STAFF_POSITION_OPTIONS = [
+  "행정실장",
+  "행정주사",
+  "주무관",
+  "교무실무사",
+  "영양사",
+  "시설관리",
+  "기타",
+] as const;
+
+// Staff info schema (for new signup flow)
+export const staffInfoSchema = z.object({
+  schoolName: z.string().min(1, "학교명을 입력해주세요").max(200, "학교명은 200자 이하여야 합니다"),
+  position: z.string().max(100).optional(),
+});
+
+export type StaffInfoInput = z.infer<typeof staffInfoSchema>;
+
+// Kakao registration schema (for new signup flow)
+export const kakaoRegisterSchema = z.object({
+  userType: z.enum(["teacher", "staff"]),
+  kakaoId: z.string().min(1, "카카오 ID가 필요합니다"),
+  name: z.string().min(2, "이름은 2자 이상이어야 합니다"),
+  email: z.string().email("올바른 이메일 형식이 아닙니다"),
+  schoolName: z.string().min(1, "학교명을 입력해주세요"),
+  subject: z.string().optional(),
+  position: z.string().optional(),
+  duties: z.array(z.string()).optional(),
+  dutiesEtc: z.string().max(200).optional(),
+  termsOfService: z.boolean().refine(val => val === true, "서비스 이용약관에 동의해주세요"),
+  privacyPolicy: z.boolean().refine(val => val === true, "개인정보 처리방침에 동의해주세요"),
+  marketingConsent: z.boolean().optional(),
+});
+
+export type KakaoRegisterInput = z.infer<typeof kakaoRegisterSchema>;

@@ -22,8 +22,9 @@ import {
 } from "./verification";
 import { sendVerificationEmail, sendPasswordResetEmail } from "./email";
 import { isAuthenticated, requireFullAuth, isSystemAdmin, hasRole } from "./middleware";
-import { USER_TYPES } from "@shared/models/auth";
+import { USER_TYPES, staff, teachers } from "@shared/models/auth";
 import { IS_EMAIL_VERIFICATION_ENABLED } from "../config/featureFlags";
+import { getKakaoAuthUrl, getKakaoToken, getKakaoUserInfo, extractKakaoUserData } from "./kakao";
 
 const router = Router();
 
@@ -168,12 +169,19 @@ router.post("/check-email", async (req: Request, res: Response) => {
 
     const { email } = result.data;
     const [existing] = await db
-      .select({ id: users.id })
+      .select({ id: users.id, authProvider: users.authProvider })
       .from(users)
       .where(eq(users.email, email.toLowerCase()))
       .limit(1);
 
-    res.json({ available: !existing });
+    if (existing) {
+      res.json({
+        available: false,
+        authProvider: existing.authProvider || "email"
+      });
+    } else {
+      res.json({ available: true });
+    }
   } catch (error) {
     console.error("Check email error:", error);
     res.status(500).json({ error: "서버 오류가 발생했습니다" });
@@ -1035,6 +1043,347 @@ router.delete("/account", isAuthenticated, async (req: Request, res: Response) =
     });
   } catch (error) {
     console.error("Delete account error:", error);
+    res.status(500).json({ error: "서버 오류가 발생했습니다" });
+  }
+});
+
+// ============================================
+// Kakao OAuth Routes
+// ============================================
+
+/**
+ * GET /api/auth/kakao
+ * Redirect to Kakao OAuth login
+ */
+router.get("/kakao", (req: Request, res: Response) => {
+  const userType = (req.query.userType as string) || "teacher";
+
+  if (userType !== "teacher" && userType !== "staff") {
+    return res.status(400).json({ error: "올바르지 않은 사용자 유형입니다" });
+  }
+
+  const authUrl = getKakaoAuthUrl(userType);
+  res.redirect(authUrl);
+});
+
+/**
+ * GET /api/auth/kakao/callback
+ * Handle Kakao OAuth callback
+ */
+router.get("/kakao/callback", async (req: Request, res: Response) => {
+  try {
+    console.log("Kakao callback received:", req.query);
+    const { code, state, error, error_description } = req.query;
+
+    // Handle error from Kakao
+    if (error) {
+      console.error("Kakao OAuth error:", error, error_description);
+      return res.redirect(`/signup?error=kakao_${error}`);
+    }
+
+    if (!code || typeof code !== "string") {
+      console.error("No code in Kakao callback");
+      return res.redirect("/signup?error=no_code");
+    }
+
+    const userType = (state as string) || "teacher";
+    console.log("User type from state:", userType);
+
+    // Exchange code for token
+    console.log("Exchanging code for token...");
+    const tokenData = await getKakaoToken(code);
+    console.log("Token received successfully");
+
+    // Get user info
+    console.log("Getting user info from Kakao...");
+    const kakaoUser = await getKakaoUserInfo(tokenData.access_token);
+    console.log("Kakao user info:", JSON.stringify(kakaoUser, null, 2));
+    const userData = extractKakaoUserData(kakaoUser);
+    console.log("Extracted user data:", userData);
+
+    // Check if user already exists with this kakaoId
+    const [existingUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.kakaoId, userData.kakaoId))
+      .limit(1);
+
+    if (existingUser && existingUser.status !== USER_STATUS.REJECTED) {
+      // User already registered (and not rejected)
+      if (existingUser.status === USER_STATUS.ACTIVE) {
+        // Update last login
+        await db.update(users).set({
+          lastLoginAt: new Date(),
+        }).where(eq(users.id, existingUser.id));
+
+        // Log user in
+        const { password: _, ...userWithoutPassword } = existingUser;
+        req.logIn(userWithoutPassword as Express.User, (err) => {
+          if (err) {
+            console.error("Kakao login session error:", err);
+            return res.redirect("/login?error=session_error");
+          }
+          return res.redirect("/");
+        });
+        return;
+      } else if (existingUser.status === USER_STATUS.PENDING) {
+        return res.redirect("/pending-approval");
+      } else {
+        return res.redirect(`/login?error=account_${existingUser.status}`);
+      }
+    }
+
+    // If rejected user exists, delete them first to allow re-registration
+    if (existingUser && existingUser.status === USER_STATUS.REJECTED) {
+      await db.delete(users).where(eq(users.id, existingUser.id));
+    }
+
+    // New user - store temp data in session and redirect to info page
+    (req.session as any).kakaoTempData = {
+      kakaoId: userData.kakaoId,
+      name: userData.name,
+      email: userData.email,
+      profileImageUrl: userData.profileImageUrl,
+      userType,
+    };
+
+    // Redirect to appropriate info page
+    if (userType === "teacher") {
+      res.redirect("/signup/teacher/info");
+    } else {
+      res.redirect("/signup/staff/info");
+    }
+  } catch (error) {
+    console.error("Kakao callback error:", error);
+    res.redirect("/signup?error=kakao_failed");
+  }
+});
+
+/**
+ * GET /api/auth/kakao/session
+ * Get Kakao temp data from session (for frontend)
+ */
+router.get("/kakao/session", (req: Request, res: Response) => {
+  const kakaoData = (req.session as any).kakaoTempData;
+
+  if (!kakaoData) {
+    return res.status(404).json({ error: "카카오 로그인 정보가 없습니다" });
+  }
+
+  res.json(kakaoData);
+});
+
+/**
+ * POST /api/auth/kakao/register
+ * Complete Kakao registration with additional info
+ */
+router.post("/kakao/register", async (req: Request, res: Response) => {
+  try {
+    const kakaoData = (req.session as any).kakaoTempData;
+
+    if (!kakaoData) {
+      return res.status(400).json({ error: "카카오 로그인 정보가 없습니다. 다시 로그인해주세요." });
+    }
+
+    const {
+      schoolName,
+      subject,
+      position,
+      duties,
+      dutiesEtc,
+      termsOfService,
+      privacyPolicy,
+      marketingConsent,
+    } = req.body;
+
+    // Validate required fields
+    if (!schoolName) {
+      return res.status(400).json({ error: "학교명을 입력해주세요" });
+    }
+
+    if (!termsOfService || !privacyPolicy) {
+      return res.status(400).json({ error: "필수 약관에 동의해주세요" });
+    }
+
+    const userType = kakaoData.userType as "teacher" | "staff";
+
+    // Check if kakaoId already exists (double check)
+    const [existing] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.kakaoId, kakaoData.kakaoId))
+      .limit(1);
+
+    if (existing) {
+      return res.status(400).json({ error: "이미 가입된 계정입니다" });
+    }
+
+    // Generate a placeholder email if not provided by Kakao
+    const email = kakaoData.email || `kakao_${kakaoData.kakaoId}@kakao.teachermate.co.kr`;
+
+    // Check if email already exists
+    const [existingEmail] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()))
+      .limit(1);
+
+    if (existingEmail) {
+      return res.status(400).json({ error: "이미 사용 중인 이메일입니다" });
+    }
+
+    // Create user
+    const [newUser] = (await db.insert(users).values({
+      email: email.toLowerCase(),
+      password: "", // No password for Kakao users
+      userType: userType,
+      name: kakaoData.name || "카카오 사용자",
+      phone: "",
+      phoneVerified: false,
+      emailVerified: true, // Kakao email is verified
+      status: USER_STATUS.PENDING,
+      organization: schoolName,
+      position: position || null,
+      kakaoId: kakaoData.kakaoId,
+      duties: duties || null,
+      dutiesEtc: dutiesEtc || null,
+      marketingAgreed: !!marketingConsent,
+      profileImageUrl: kakaoData.profileImageUrl || null,
+    }).returning()) as Array<typeof users.$inferSelect>;
+
+    // Create type-specific record
+    if (userType === "teacher") {
+      await db.insert(teachers).values({
+        userId: newUser.id,
+        schoolName: schoolName,
+        schoolAddress: null,
+        subject: subject || null,
+        department: null,
+      });
+    } else if (userType === "staff") {
+      await db.insert(staff).values({
+        userId: newUser.id,
+        schoolName: schoolName,
+        position: position || null,
+      });
+    }
+
+    // Clear session data
+    delete (req.session as any).kakaoTempData;
+
+    res.status(201).json({
+      success: true,
+      message: "회원가입이 완료되었습니다. 관리자 승인 후 서비스를 이용하실 수 있습니다.",
+      userId: newUser.id,
+      userType: newUser.userType,
+    });
+  } catch (error) {
+    console.error("Kakao registration error:", error);
+    res.status(500).json({ error: "서버 오류가 발생했습니다" });
+  }
+});
+
+// ============================================
+// Email Registration Routes
+// ============================================
+
+/**
+ * POST /api/auth/email/register
+ * Complete email registration
+ */
+router.post("/email/register", async (req: Request, res: Response) => {
+  try {
+    const {
+      email,
+      password,
+      name,
+      nickname,
+      userType,
+      schoolName,
+      subject,
+      position,
+      duties,
+      dutiesEtc,
+      termsOfService,
+      privacyPolicy,
+      marketingConsent,
+    } = req.body;
+
+    // Validate required fields
+    if (!email || !password || !name) {
+      return res.status(400).json({ error: "이메일, 비밀번호, 이름을 입력해주세요" });
+    }
+
+    if (!schoolName) {
+      return res.status(400).json({ error: "학교명을 입력해주세요" });
+    }
+
+    if (!termsOfService || !privacyPolicy) {
+      return res.status(400).json({ error: "필수 약관에 동의해주세요" });
+    }
+
+    if (userType !== "teacher" && userType !== "staff") {
+      return res.status(400).json({ error: "올바르지 않은 사용자 유형입니다" });
+    }
+
+    // Check if email already exists
+    const [existingEmail] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()))
+      .limit(1);
+
+    if (existingEmail) {
+      return res.status(400).json({ error: "이미 사용 중인 이메일입니다" });
+    }
+
+    // Hash password
+    const hashedPassword = await hashPassword(password);
+
+    // Create user
+    const [newUser] = (await db.insert(users).values({
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      userType: userType,
+      name: name,
+      nickname: nickname || null,
+      phone: "",
+      phoneVerified: false,
+      emailVerified: true, // Skip email verification for beta
+      status: USER_STATUS.ACTIVE, // Auto-approve for beta
+      organization: schoolName,
+      position: position || null,
+      authProvider: "email",
+      duties: duties || null,
+      dutiesEtc: dutiesEtc || null,
+      marketingAgreed: !!marketingConsent,
+    }).returning()) as Array<typeof users.$inferSelect>;
+
+    // Create type-specific record
+    if (userType === "teacher") {
+      await db.insert(teachers).values({
+        userId: newUser.id,
+        schoolName: schoolName,
+        schoolAddress: null,
+        subject: subject || null,
+        department: null,
+      });
+    } else if (userType === "staff") {
+      await db.insert(staff).values({
+        userId: newUser.id,
+        schoolName: schoolName,
+        position: position || null,
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "회원가입이 완료되었습니다.",
+      userId: newUser.id,
+      userType: newUser.userType,
+    });
+  } catch (error) {
+    console.error("Email registration error:", error);
     res.status(500).json({ error: "서버 오류가 발생했습니다" });
   }
 });

@@ -27,6 +27,7 @@ import RecruitmentNoticeForm from "@/pages/RecruitmentNoticeForm";
 import SuneungNoticeForm from "@/pages/SuneungNoticeForm";
 import ParticipationForm from "@/pages/ParticipationForm";
 import SyllabusForm from "@/pages/SyllabusForm";
+import ConsentForm from "@/pages/ConsentForm";
 import MyPage from "@/pages/MyPage";
 import MyPageDocumentsPage from "@/pages/MyPageDocuments";
 import MyPageFavoritesPage from "@/pages/MyPageFavorites";
@@ -41,10 +42,13 @@ import Chat from "@/pages/Chat";
 // Auth pages
 import Login from "@/pages/auth/Login";
 import SignupSelect from "@/pages/auth/SignupSelect";
-import SignupTeacher from "@/pages/auth/SignupTeacher";
-import SignupInstructor from "@/pages/auth/SignupInstructor";
-import SignupSchoolAdmin from "@/pages/auth/SignupSchoolAdmin";
+import SignupKakao from "@/pages/auth/SignupKakao";
+import SignupEmail from "@/pages/auth/SignupEmail";
+import SignupTeacherInfo from "@/pages/auth/SignupTeacherInfo";
+import SignupStaffInfo from "@/pages/auth/SignupStaffInfo";
+import SignupTerms from "@/pages/auth/SignupTerms";
 import SignupComplete from "@/pages/auth/SignupComplete";
+import BetaClosed from "@/pages/auth/BetaClosed";
 import ForgotPassword from "@/pages/auth/ForgotPassword";
 import ResetPassword from "@/pages/auth/ResetPassword";
 import PendingApproval from "@/pages/auth/PendingApproval";
@@ -108,10 +112,15 @@ function Router() {
       {/* Auth routes */}
       <Route path="/login" component={Login} />
       <Route path="/signup" component={SignupSelect} />
-      <Route path="/signup/teacher" component={SignupTeacher} />
-      <Route path="/signup/instructor" component={SignupInstructor} />
-      <Route path="/signup/school-admin" component={SignupSchoolAdmin} />
+      <Route path="/signup/teacher" component={SignupKakao} />
+      <Route path="/signup/staff" component={SignupKakao} />
+      <Route path="/signup/teacher/email" component={SignupEmail} />
+      <Route path="/signup/staff/email" component={SignupEmail} />
+      <Route path="/signup/teacher/info" component={SignupTeacherInfo} />
+      <Route path="/signup/staff/info" component={SignupStaffInfo} />
+      <Route path="/signup/terms" component={SignupTerms} />
       <Route path="/signup/complete" component={SignupComplete} />
+      <Route path="/signup/closed" component={BetaClosed} />
       <Route path="/pending-approval" component={PendingApproval} />
       <Route path="/password/find" component={ForgotPassword} />
       <Route path="/password/reset" component={ResetPassword} />
@@ -134,6 +143,7 @@ function Router() {
       <ProtectedRoute path="/create/suneung-notice" component={SuneungNoticeForm} />
       <ProtectedRoute path="/create/participation-form" component={ParticipationForm} />
       <ProtectedRoute path="/create/syllabus" component={SyllabusForm} />
+      <ProtectedRoute path="/create/consent-form" component={ConsentForm} />
       <ProtectedRoute path="/mypage" component={MyPage} />
       <ProtectedRoute path="/mypage/documents" component={MyPageDocumentsPage} />
       <ProtectedRoute path="/mypage/favorites" component={MyPageFavoritesPage} />

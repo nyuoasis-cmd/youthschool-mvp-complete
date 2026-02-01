@@ -6,6 +6,9 @@ import PDFDownloadButton from "@/components/PDFDownloadButton";
 import RecruitmentNoticePreview from "@/components/RecruitmentNoticePreview";
 import DateRangePicker, { DateRangeValue } from "@/components/common/DateRangePicker";
 import { Button } from "@/components/ui/button";
+import { AIStyledButton, SparkleIcon } from "@/components/AIGenerateButton";
+import { DocumentSaveButton, AutoSaveIndicator } from "@/components/DocumentSaveButton";
+import { useDocumentSave } from "@/hooks/use-document-save";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -493,6 +496,88 @@ export default function RecruitmentNoticeForm() {
   // PDF 파일명
   const pdfFileName = `${schoolName || "학교"}_채용공고_${noticeNumber || ""}`;
 
+  // 문서 저장 기능
+  const getFormData = useCallback(() => ({
+    schoolName,
+    noticeNumber,
+    noticeDate,
+    educationOffice,
+    positions,
+    contractPeriod,
+    isUntilRetirement,
+    workTimeStart,
+    workTimeEnd,
+    breakTime,
+    workPlace,
+    salaryType,
+    salaryAmount,
+    salaryUnit,
+    salaryNote,
+    minAge,
+    retirementAge,
+    requiredCertificates,
+    otherQualifications,
+    preferredConditions,
+    schedules,
+    contactDepartment,
+    contactPhone,
+    selectedFirstDocs,
+    selectedFinalDocs,
+  }), [schoolName, noticeNumber, noticeDate, educationOffice, positions, contractPeriod, isUntilRetirement, workTimeStart, workTimeEnd, breakTime, workPlace, salaryType, salaryAmount, salaryUnit, salaryNote, minAge, retirementAge, requiredCertificates, otherQualifications, preferredConditions, schedules, contactDepartment, contactPhone, selectedFirstDocs, selectedFinalDocs]);
+
+  const getTitle = useCallback(() => `${schoolName || "학교"} 채용공고 ${noticeNumber || ""}`, [schoolName, noticeNumber]);
+
+  const getContent = useCallback(() => {
+    return JSON.stringify(getFormData());
+  }, [getFormData]);
+
+  const handleLoadDocument = useCallback((data: Record<string, unknown>) => {
+    if (data.schoolName) setSchoolName(data.schoolName as string);
+    if (data.noticeNumber) setNoticeNumber(data.noticeNumber as string);
+    if (data.noticeDate) setNoticeDate(data.noticeDate as string);
+    if (data.educationOffice) setEducationOffice(data.educationOffice as string);
+    if (data.positions) setPositions(data.positions as PositionItem[]);
+    if (data.contractPeriod) setContractPeriod(data.contractPeriod as DateRangeValue);
+    if (data.isUntilRetirement !== undefined) setIsUntilRetirement(data.isUntilRetirement as boolean);
+    if (data.workTimeStart) setWorkTimeStart(data.workTimeStart as string);
+    if (data.workTimeEnd) setWorkTimeEnd(data.workTimeEnd as string);
+    if (data.breakTime) setBreakTime(data.breakTime as string);
+    if (data.workPlace) setWorkPlace(data.workPlace as string);
+    if (data.salaryType) setSalaryType(data.salaryType as string);
+    if (data.salaryAmount) setSalaryAmount(data.salaryAmount as string);
+    if (data.salaryUnit) setSalaryUnit(data.salaryUnit as string);
+    if (data.salaryNote) setSalaryNote(data.salaryNote as string);
+    if (data.minAge) setMinAge(data.minAge as string);
+    if (data.retirementAge) setRetirementAge(data.retirementAge as string);
+    if (data.requiredCertificates) setRequiredCertificates(data.requiredCertificates as string[]);
+    if (data.otherQualifications) setOtherQualifications(data.otherQualifications as string);
+    if (data.preferredConditions) setPreferredConditions(data.preferredConditions as string);
+    if (data.schedules) setSchedules(data.schedules as ScheduleItem[]);
+    if (data.contactDepartment) setContactDepartment(data.contactDepartment as string);
+    if (data.contactPhone) setContactPhone(data.contactPhone as string);
+    if (data.selectedFirstDocs) setSelectedFirstDocs(data.selectedFirstDocs as string[]);
+    if (data.selectedFinalDocs) setSelectedFinalDocs(data.selectedFinalDocs as string[]);
+  }, []);
+
+  const {
+    isSaving,
+    lastSavedAt,
+    saveError,
+    saveDocument,
+    triggerAutoSave,
+  } = useDocumentSave({
+    documentType: "채용공고",
+    getFormData,
+    getTitle,
+    getContent,
+    onLoadDocument: handleLoadDocument,
+  });
+
+  // 폼 변경 시 자동 저장 트리거
+  useEffect(() => {
+    triggerAutoSave();
+  }, [schoolName, noticeNumber, noticeDate, educationOffice, positions, contractPeriod, isUntilRetirement, workTimeStart, workTimeEnd, breakTime, workPlace, salaryType, salaryAmount, salaryUnit, salaryNote, minAge, retirementAge, requiredCertificates, otherQualifications, preferredConditions, schedules, contactDepartment, contactPhone, selectedFirstDocs, selectedFinalDocs, triggerAutoSave]);
+
   // 미리보기 props
   const previewProps = {
     schoolName: schoolName || "학교명",
@@ -551,10 +636,22 @@ export default function RecruitmentNoticeForm() {
               <p className="text-sm text-muted-foreground">필요한 정보를 입력하면 AI가 항목을 작성합니다</p>
             </div>
           </div>
-          <PDFDownloadButton
-            contentRef={documentRef}
-            fileName={pdfFileName}
-          />
+          <div className="flex items-center gap-3">
+            <AutoSaveIndicator
+              lastSavedAt={lastSavedAt}
+              isSaving={isSaving}
+              error={saveError}
+            />
+            <DocumentSaveButton
+              onClick={() => saveDocument("completed")}
+              isSaving={isSaving}
+              variant="header"
+            />
+            <PDFDownloadButton
+              contentRef={documentRef}
+              fileName={pdfFileName}
+            />
+          </div>
         </div>
       </header>
 
@@ -651,25 +748,11 @@ export default function RecruitmentNoticeForm() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <label className="text-sm font-medium">담당업무 <span className="text-destructive">*</span></label>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
+                        <AIStyledButton
                           onClick={() => generateFieldMutation.mutate({ fieldName: "duties", fieldLabel: "담당업무" })}
                           disabled={generatingField === "duties" || isGeneratingAll}
-                        >
-                          {generatingField === "duties" ? (
-                            <>
-                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                              생성 중...
-                            </>
-                          ) : (
-                            <>
-                              <Wand2 className="w-3 h-3 mr-1" />
-                              AI 생성
-                            </>
-                          )}
-                        </Button>
+                          isLoading={generatingField === "duties"}
+                        />
                       </div>
                       <Textarea
                         placeholder="담당 업무를 입력하세요. 여러 업무는 줄바꿈으로 구분합니다."
@@ -800,25 +883,11 @@ export default function RecruitmentNoticeForm() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-medium">보수 관련 비고</label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
+                    <AIStyledButton
                       onClick={() => generateFieldMutation.mutate({ fieldName: "salaryNote", fieldLabel: "보수 관련 비고" })}
                       disabled={generatingField === "salaryNote" || isGeneratingAll}
-                    >
-                      {generatingField === "salaryNote" ? (
-                        <>
-                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                          생성 중...
-                        </>
-                      ) : (
-                        <>
-                          <Wand2 className="w-3 h-3 mr-1" />
-                          AI 생성
-                        </>
-                      )}
-                    </Button>
+                      isLoading={generatingField === "salaryNote"}
+                    />
                   </div>
                   <Textarea
                     placeholder="보수 관련 추가 안내사항을 입력하세요."
@@ -899,25 +968,11 @@ export default function RecruitmentNoticeForm() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-medium">기타 응시자격</label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
+                    <AIStyledButton
                       onClick={() => generateFieldMutation.mutate({ fieldName: "otherQualifications", fieldLabel: "기타 응시자격" })}
                       disabled={generatingField === "otherQualifications" || isGeneratingAll}
-                    >
-                      {generatingField === "otherQualifications" ? (
-                        <>
-                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                          생성 중...
-                        </>
-                      ) : (
-                        <>
-                          <Wand2 className="w-3 h-3 mr-1" />
-                          AI 생성
-                        </>
-                      )}
-                    </Button>
+                      isLoading={generatingField === "otherQualifications"}
+                    />
                   </div>
                   <Textarea
                     placeholder="기타 응시자격을 입력하세요."
@@ -930,25 +985,11 @@ export default function RecruitmentNoticeForm() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-medium">우대사항</label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
+                    <AIStyledButton
                       onClick={() => generateFieldMutation.mutate({ fieldName: "preferredConditions", fieldLabel: "우대사항" })}
                       disabled={generatingField === "preferredConditions" || isGeneratingAll}
-                    >
-                      {generatingField === "preferredConditions" ? (
-                        <>
-                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                          생성 중...
-                        </>
-                      ) : (
-                        <>
-                          <Wand2 className="w-3 h-3 mr-1" />
-                          AI 생성
-                        </>
-                      )}
-                    </Button>
+                      isLoading={generatingField === "preferredConditions"}
+                    />
                   </div>
                   <Textarea
                     placeholder="우대사항을 입력하세요."
@@ -1082,24 +1123,29 @@ export default function RecruitmentNoticeForm() {
                 <Eye className="w-4 h-4 mr-2" />
                 미리보기
               </Button>
-              <Button
+              <DocumentSaveButton
+                onClick={() => saveDocument("completed")}
+                isSaving={isSaving}
+                variant="footer"
+              />
+              <button
                 type="button"
-                className="flex-1"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-blue-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg hover:from-violet-600 hover:to-blue-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={() => generateAllMutation.mutate()}
                 disabled={generateAllMutation.isPending || isGeneratingAll}
               >
                 {generateAllMutation.isPending || isGeneratingAll ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     AI 전부 생성 중...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4 mr-2" />
+                    <SparkleIcon />
                     AI 전부 생성
                   </>
                 )}
-              </Button>
+              </button>
               <Button type="button" variant="secondary" onClick={handleReset}>
                 초기화
               </Button>

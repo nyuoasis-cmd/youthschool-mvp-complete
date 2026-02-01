@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { Link } from "wouter";
@@ -6,6 +6,9 @@ import PDFDownloadButton from "@/components/PDFDownloadButton";
 import FieldTripApplicationPreview from "@/components/FieldTripApplicationPreview";
 import DateRangePicker, { DateRangeValue } from "@/components/common/DateRangePicker";
 import { Button } from "@/components/ui/button";
+import { AIStyledButton, SparkleIcon } from "@/components/AIGenerateButton";
+import { DocumentSaveButton, AutoSaveIndicator } from "@/components/DocumentSaveButton";
+import { useDocumentSave } from "@/hooks/use-document-save";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -131,6 +134,61 @@ export default function FieldTripApplicationForm() {
   const periodRange = useMemo(() => calculateDateRange(period.start, period.end), [period.end, period.start]);
   const usedDays = periodRange?.totalDays ?? 0;
   const remainingDays = Math.max(20 - usedDays, 0);
+
+  // 문서 저장 기능
+  const getFormData = useCallback(() => ({
+    studentInfo,
+    period,
+    tripType,
+    destination,
+    detailPlace,
+    purpose,
+    planDays,
+    guardian,
+    companions,
+    applicationDate,
+    agreementChecked,
+    schoolName,
+  }), [studentInfo, period, tripType, destination, detailPlace, purpose, planDays, guardian, companions, applicationDate, agreementChecked, schoolName]);
+
+  const getTitle = useCallback(() => `교외체험학습_${studentInfo.name || "학생"}_${period.start || ""}`, [studentInfo.name, period.start]);
+
+  const getContent = useCallback(() => {
+    return JSON.stringify(getFormData());
+  }, [getFormData]);
+
+  const handleLoadDocument = useCallback((data: Record<string, unknown>) => {
+    if (data.studentInfo) setStudentInfo(data.studentInfo as StudentInfo);
+    if (data.period) setPeriod(data.period as DateRangeValue);
+    if (data.tripType) setTripType(data.tripType as string);
+    if (data.destination) setDestination(data.destination as string);
+    if (data.detailPlace) setDetailPlace(data.detailPlace as string);
+    if (data.purpose) setPurpose(data.purpose as string);
+    if (data.planDays) setPlanDays(data.planDays as PlanDay[]);
+    if (data.guardian) setGuardian(data.guardian as GuardianInfo);
+    if (data.companions) setCompanions(data.companions as Companion[]);
+    if (data.applicationDate) setApplicationDate(data.applicationDate as string);
+    if (data.agreementChecked !== undefined) setAgreementChecked(data.agreementChecked as boolean);
+  }, []);
+
+  const {
+    isSaving,
+    lastSavedAt,
+    saveError,
+    saveDocument,
+    triggerAutoSave,
+  } = useDocumentSave({
+    documentType: "현장체험학습",
+    getFormData,
+    getTitle,
+    getContent,
+    onLoadDocument: handleLoadDocument,
+  });
+
+  // 폼 변경 시 자동 저장 트리거
+  useEffect(() => {
+    triggerAutoSave();
+  }, [studentInfo, period, tripType, destination, detailPlace, purpose, planDays, guardian, companions, applicationDate, agreementChecked, triggerAutoSave]);
 
   const parsePlanDays = (text: string): PlanDay[] | null => {
     try {
@@ -379,7 +437,19 @@ export default function FieldTripApplicationForm() {
                 <p className="text-sm text-muted-foreground">필요한 정보를 입력하면 신청서를 생성합니다</p>
               </div>
             </div>
-            <PDFDownloadButton contentRef={documentRef} fileName={pdfFileName} />
+            <div className="flex items-center gap-3">
+              <AutoSaveIndicator
+                lastSavedAt={lastSavedAt}
+                isSaving={isSaving}
+                error={saveError}
+              />
+              <DocumentSaveButton
+                onClick={() => saveDocument("completed")}
+                isSaving={isSaving}
+                variant="header"
+              />
+              <PDFDownloadButton contentRef={documentRef} fileName={pdfFileName} />
+            </div>
           </div>
         </div>
       </header>
@@ -550,25 +620,11 @@ export default function FieldTripApplicationForm() {
             <section className="space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold text-foreground">체험학습 계획</h2>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
+                <AIStyledButton
                   onClick={() => generateFieldMutation.mutate({ fieldName: "planDays", fieldLabel: "체험학습 계획" })}
                   disabled={generatingField === "planDays" || isGeneratingAll}
-                >
-                  {generatingField === "planDays" ? (
-                    <>
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      생성 중...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-3 h-3 mr-1" />
-                      AI 생성
-                    </>
-                  )}
-                </Button>
+                  isLoading={generatingField === "planDays"}
+                />
               </div>
               <div className="space-y-4">
                 {planDays.map((day, index) => (
@@ -762,24 +818,29 @@ export default function FieldTripApplicationForm() {
             </section>
 
             <div className="flex flex-col gap-3 pt-4 sm:flex-row">
-              <Button
+              <DocumentSaveButton
+                onClick={() => saveDocument("completed")}
+                isSaving={isSaving}
+                variant="footer"
+              />
+              <button
                 type="button"
-                className="flex-1"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-blue-500 text-white font-medium rounded-lg shadow-md hover:shadow-lg hover:from-violet-600 hover:to-blue-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={() => generateAllMutation.mutate()}
                 disabled={generateAllMutation.isPending || isGeneratingAll}
               >
                 {generateAllMutation.isPending || isGeneratingAll ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     AI 전부 생성 중...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4 mr-2" />
+                    <SparkleIcon />
                     AI로 문서 생성하기
                   </>
                 )}
-              </Button>
+              </button>
               <Button type="button" variant="secondary" onClick={handleReset}>
                 초기화
               </Button>
